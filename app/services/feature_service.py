@@ -134,3 +134,54 @@ class FeatureService:
             "macd": macd_info["macd"],
             "vol_ratio": round(vol_ratio, 4),
         }
+
+    @classmethod
+    def build_features_from_bars(
+        cls,
+        bars: List[Any],
+        frequency: str = "1m",
+    ) -> Dict[str, Any]:
+        """Compute indicator features from 1-minute (or arbitrary frequency) OHLCV bars.
+        
+        Accepts a chronological list of Price model instances or bar dictionaries.
+        Calculates identical indicator suite: SMA5, SMA20, SMA50, RSI14, MACD, Volume Ratio.
+        """
+        if not bars:
+            return {
+                "feature_schema_version": cls.FEATURE_SCHEMA_VERSION,
+                "frequency": frequency,
+                "timestamp": None,
+                "current_close": None,
+                "sma_5": None,
+                "sma_20": None,
+                "sma_50": None,
+                "ret_1d": 0.0,
+                "ret_5d": 0.0,
+                "rsi_14": None,
+                "macd": None,
+                "vol_ratio": 1.0,
+            }
+
+        normalized: List[Dict[str, Any]] = []
+        for b in bars:
+            if isinstance(b, dict):
+                normalized.append(b)
+            else:
+                normalized.append({
+                    "timestamp": getattr(b, "timestamp", None),
+                    "open": float(getattr(b, "open", 0.0)),
+                    "high": float(getattr(b, "high", 0.0)),
+                    "low": float(getattr(b, "low", 0.0)),
+                    "close": float(getattr(b, "close", 0.0)),
+                    "volume": float(getattr(b, "volume", 0)),
+                })
+
+        features = cls.extract_features_at_point(normalized, len(normalized) - 1)
+        features["frequency"] = frequency
+        return features
+
+    @classmethod
+    def build_features(cls, bars: List[Any]) -> Dict[str, Any]:
+        """Convenience alias for building features from a sequence of bars."""
+        return cls.build_features_from_bars(bars)
+

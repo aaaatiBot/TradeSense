@@ -9,6 +9,7 @@ from sqlalchemy import select
 from app.extensions import db
 from app.models.price import Price
 from app.models.stock import Stock
+from app.services.live_tick_service import LiveTickService, get_cached_tick
 from app.services.universe_service import UniverseService
 from app.utils.clock import Clock
 
@@ -136,6 +137,76 @@ class MarketDataService:
 
         db.session.commit()
         return count
+
+    @classmethod
+    def get_latest_tick(cls, ticker: str) -> Optional[Dict[str, Any]]:
+        """Always reads latest tick directly from in-memory cache."""
+        return get_cached_tick(ticker)
+
+    @classmethod
+    def get_quote(cls, ticker: str) -> Dict[str, Any]:
+        """Fetch real-time stock quote with fallback.
+        
+        First attempts to read from latest-tick cache (populated by LiveTickService).
+        Falls back to existing REST/database path if cache is empty or stale (> 5 seconds during market hours).
+        """
+        cached = cls.get_latest_tick(ticker)
+        now = Clock.utcnow()
+
+        if cached is not None:
+            ts = cached.get("ts_utc")
+            ts_utc = Clock.ensure_utc(ts) if ts else now
+            age_seconds = (now - ts_utc).total_seconds()
+            in_market_hours = LiveTickService.is_market_hours(now)
+            is_stale = in_market_hours and (age_seconds > 5.0)
+
+            if not is_stale:
+                return {
+                    "ticker": ticker.upper().strip(),
+                    "price": cached["price"],
+                    "volume": cached.get("volume", 0),
+                    "timestamp": ts_utc,
+                    "source": cached.get("source", "live_tick_cache"),
+                    "is_live": True,
+                    "is_stale": False,
+                }
+
+        # Fallback to database / REST persistence layer
+        stock = UniverseService.get_stock(ticker)
+        if stock is None:
+            raise MarketDataError("STOCK_NOT_FOUND", f"Stock '{ticker}' not found in active universe", status_code=404)
+
+        latest_price_row = db.session.execute(
+            select(Price)
+            .where(Price.stock_id == stock.id)
+            .order_by(Price.timestamp.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+
+        if latest_price_row is not None:
+            return {
+                "ticker": ticker.upper().strip(),
+                "price": latest_price_row.close,
+                "volume": latest_price_row.volume,
+                "timestamp": latest_price_row.timestamp,
+                "source": latest_price_row.source or "database",
+                "is_live": False,
+                "is_stale": True if cached is not None else False,
+            }
+
+        last_p = getattr(stock, "last_price", None)
+        if last_p is not None and last_p > 0:
+            return {
+                "ticker": ticker.upper().strip(),
+                "price": Decimal(str(last_p)),
+                "volume": 0,
+                "timestamp": now,
+                "source": "stock_metadata",
+                "is_live": False,
+                "is_stale": True,
+            }
+
+        raise MarketDataError("PRICE_NOT_FOUND", f"No price data available for '{ticker}'", status_code=404)
 
     @classmethod
     def get_historical_prices(cls, ticker: str, limit: int = 100) -> List[Price]:

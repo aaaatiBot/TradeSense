@@ -29,6 +29,7 @@ class Price(db.Model):
     low: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     close: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     volume: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    frequency: Mapped[str] = mapped_column(String(16), default="1d", nullable=False, index=True)
     source: Mapped[str] = mapped_column(String(64), default="market_data", nullable=False)
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), default=get_current_time, nullable=False

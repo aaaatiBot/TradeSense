@@ -5,6 +5,7 @@ from app.models.session import Session
 from app.models.password_reset import PasswordResetToken
 from app.models.stock import Stock
 from app.models.price import Price
+from app.models.tick import Tick
 from app.models.reference_notional_config import ReferenceNotionalConfig
 from app.models.model_version import ModelVersion
 from app.models.conditional_return_estimate import ConditionalReturnEstimate
@@ -30,6 +31,7 @@ __all__ = [
     "PasswordResetToken",
     "Stock",
     "Price",
+    "Tick",
     "ReferenceNotionalConfig",
     "ModelVersion",
     "ConditionalReturnEstimate",

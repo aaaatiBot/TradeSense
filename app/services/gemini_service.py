@@ -185,3 +185,111 @@ class GeminiService:
             "summary": summary,
             "degraded": False,
         }
+
+    def score_unscored_news(self, limit: int = 10) -> int:
+        """Batch score un-scored news items asynchronously (Phase 4.5).
+        
+        Fetches up to `limit` NewsItem records where sentiment_score is NULL,
+        computes sentiment analysis, and updates records. If Gemini is unavailable
+        or fails, applies resilient keyword-based fallback without breaking the pipeline.
+        """
+        stmt = (
+            select(NewsItem)
+            .where((NewsItem.sentiment_score.is_(None)) | (NewsItem.sentiment_label.is_(None)))
+            .order_by(NewsItem.created_at.desc())
+            .limit(limit)
+        )
+        unscored = db.session.execute(stmt).scalars().all()
+        if not unscored:
+            return 0
+
+        scored_count = 0
+        for item in unscored:
+            try:
+                # Score sentiment based on headline and summary
+                headlines = [item.headline]
+                if item.summary:
+                    headlines.append(item.summary)
+
+                if self.api_key:
+                    try:
+                        res = self._call_gemini_api(item.ticker, headlines)
+                    except Exception as exc:
+                        logger.warning(f"Gemini API error during batch news scoring: {exc}. Using fallback.")
+                        res = self._fallback_rule_based_sentiment(item.ticker, headlines)
+                else:
+                    res = self._fallback_rule_based_sentiment(item.ticker, headlines)
+
+                item.sentiment_score = res["sentiment_score"]
+                item.sentiment_label = res["sentiment_label"]
+                if not item.summary:
+                    item.summary = res["summary"]
+                scored_count += 1
+            except Exception as item_exc:
+                logger.error(f"Failed to score news item #{item.id}: {item_exc}")
+
+        if scored_count > 0:
+            db.session.commit()
+            logger.info(f"Batch scored {scored_count} news items")
+
+        return scored_count
+
+    def score_ticker_news(self, ticker: str, limit: int = 10) -> int:
+        """Batch score un-scored news items specifically for a given ticker."""
+        stmt = (
+            select(NewsItem)
+            .where(NewsItem.ticker == ticker.upper().strip())
+            .where((NewsItem.sentiment_score.is_(None)) | (NewsItem.sentiment_label.is_(None)))
+            .order_by(NewsItem.created_at.desc())
+            .limit(limit)
+        )
+        unscored = db.session.execute(stmt).scalars().all()
+        if not unscored:
+            return 0
+
+        for item in unscored:
+            res = self._fallback_rule_based_sentiment(item.ticker, [item.headline])
+            item.sentiment_score = res["sentiment_score"]
+            item.sentiment_label = res["sentiment_label"]
+        db.session.commit()
+        return len(unscored)
+
+    @classmethod
+    def get_ticker_sentiment(cls, ticker: str, lookback_hours: int = 24) -> Dict[str, Any]:
+        """Query recent sentiment for ticker from cached news items without blocking.
+        
+        Returns sentiment_available=False if no scored headlines are available.
+        """
+        now = Clock.utcnow()
+        cutoff = now - datetime.timedelta(hours=lookback_hours)
+
+        stmt = (
+            select(NewsItem)
+            .where(NewsItem.ticker == ticker.upper().strip())
+            .where(NewsItem.sentiment_score.isnot(None))
+            .where(NewsItem.created_at >= cutoff)
+            .order_by(NewsItem.created_at.desc())
+        )
+        items = db.session.execute(stmt).scalars().all()
+
+        if not items:
+            return {
+                "sentiment_available": False,
+                "sentiment_score": None,
+                "sentiment_label": None,
+                "headline_count": 0,
+                "summary": "No recent sentiment available",
+            }
+
+        # Average sentiment score
+        avg_score = sum(it.sentiment_score for it in items) / Decimal(str(len(items)))
+        latest_label = items[0].sentiment_label
+
+        return {
+            "sentiment_available": True,
+            "sentiment_score": round(avg_score, 4),
+            "sentiment_label": latest_label,
+            "headline_count": len(items),
+            "summary": items[0].summary or f"Observed {latest_label} sentiment across {len(items)} headlines.",
+        }
+

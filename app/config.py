@@ -59,10 +59,23 @@ class BaseConfig:
     RATE_LIMIT_DEFAULT: str = os.getenv("RATE_LIMIT_DEFAULT", "100/minute")
 
     # Market Data
-    MARKET_DATA_PROVIDER: str = os.getenv("MARKET_DATA_PROVIDER", "nse_stub")
+    MARKET_DATA_PROVIDER: str = os.getenv("MARKET_DATA_PROVIDER", "fyers")
     MARKET_DATA_API_KEY: str = os.getenv("MARKET_DATA_API_KEY", "")
     MARKET_DATA_BASE_URL: str = os.getenv("MARKET_DATA_BASE_URL", "")
     MARKET_DATA_TIMEOUT_SECONDS: float = float(os.getenv("MARKET_DATA_TIMEOUT_SECONDS", "5.0"))
+    TICK_STALENESS_THRESHOLD_SECONDS: float = float(os.getenv("TICK_STALENESS_THRESHOLD_SECONDS", "5.0"))
+
+    # Fyers Brokerage / Live WebSocket Integration
+    FYERS_CLIENT_ID: str = os.getenv("FYERS_CLIENT_ID", "")
+    FYERS_SECRET_KEY: str = os.getenv("FYERS_SECRET_KEY", "")
+    FYERS_ACCESS_TOKEN: str = os.getenv("FYERS_ACCESS_TOKEN", "")
+
+    # Continuous News Ingestion
+    NEWS_RSS_FEEDS: str = os.getenv(
+        "NEWS_RSS_FEEDS",
+        "https://feeds.feedburner.com/ndtvprofit-latest,https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms",
+    )
+    NEWS_POLL_INTERVAL_SECONDS: int = int(os.getenv("NEWS_POLL_INTERVAL_SECONDS", "60"))
 
     # Gemini Integration
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")

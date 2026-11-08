@@ -112,6 +112,23 @@ class BlockchainWorker:
             elif job.job_type == "anchor_trade_result":
                 trade_id = payload.get("trade_id")
                 self.blockchain_service.anchor_trade_result(trade_id)
+            elif job.job_type == "tick_aggregate":
+                from app.services.tick_aggregation_service import TickAggregationService
+                lookback = payload.get("lookback_minutes", 5)
+                TickAggregationService.run_once(lookback_minutes=lookback)
+            elif job.job_type == "news_poll":
+                from app.services.news_ingestion_service import NewsIngestionService
+                feeds = payload.get("feeds")
+                NewsIngestionService.poll_feeds(feeds=feeds)
+            elif job.job_type == "score_news":
+                from app.services.gemini_service import GeminiService
+                limit = payload.get("limit", 10)
+                GeminiService().score_unscored_news(limit=limit)
+            elif job.job_type == "live_tick_reconnect":
+                from app.services.live_tick_service import LiveTickService
+                symbols = payload.get("symbols", [])
+                service = LiveTickService()
+                service.start(symbols=symbols)
             else:
                 raise ValueError(f"Unknown job_type: {job.job_type}")
 

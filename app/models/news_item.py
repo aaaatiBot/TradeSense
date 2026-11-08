@@ -19,6 +19,7 @@ class NewsItem(db.Model):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     ticker: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     headline: Mapped[str] = mapped_column(Text, nullable=False)
+    headline_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, unique=True, index=True)
     summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     sentiment_score: Mapped[Optional[Decimal]] = mapped_column(Numeric(6, 4), nullable=True)
     sentiment_label: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
