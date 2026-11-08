@@ -212,6 +212,95 @@ class CostEngine:
         )
 
     @classmethod
+    def calculate_single_leg(
+        cls,
+        quantity: int,
+        price: Decimal,
+        action: str = "BUY",
+        mode: str = "CNC",
+        dp_charged: bool = False,
+        slippage_pct: Optional[Decimal] = None,
+        rate_card_version: Optional[str] = None,
+    ) -> CostResult:
+        """Calculate costs for a single buy or sell order leg."""
+        if quantity <= 0:
+            raise ValueError(f"Quantity must be strictly positive, got {quantity}")
+        if price <= 0:
+            raise ValueError(f"Price must be strictly positive, got price={price}")
+        mode_upper = mode.upper()
+        action_upper = action.upper()
+        if mode_upper not in ("CNC", "MIS"):
+            raise ValueError(f"Unsupported trading mode: {mode}. Must be 'CNC' or 'MIS'")
+        if action_upper not in ("BUY", "SELL"):
+            raise ValueError(f"Unsupported action: {action}. Must be 'BUY' or 'SELL'")
+
+        q = Decimal(str(quantity))
+        turnover = round_currency(q * price)
+        buy_turnover = turnover if action_upper == "BUY" else Decimal("0.00")
+        sell_turnover = turnover if action_upper == "SELL" else Decimal("0.00")
+
+        # 1. Brokerage
+        if mode_upper == "CNC":
+            brokerage = cls.CNC_BROKERAGE_FLAT
+        else:
+            brokerage = min(cls.MIS_BROKERAGE_CAP, round_currency(turnover * cls.MIS_BROKERAGE_PCT))
+
+        # 2. STT / CTT
+        if mode_upper == "CNC":
+            stt = round_currency(turnover * cls.CNC_STT_BUY_PCT) if action_upper == "BUY" else round_currency(turnover * cls.CNC_STT_SELL_PCT)
+        else:
+            stt = round_currency(turnover * cls.MIS_STT_SELL_PCT) if action_upper == "SELL" else Decimal("0.00")
+
+        # 3. Exchange Transaction Charges
+        txn_charges = round_currency(turnover * cls.EXCHANGE_TXN_PCT)
+
+        # 4. SEBI Turnover Charges
+        sebi_charges = round_currency(turnover * cls.SEBI_TURNOVER_PCT)
+
+        # 5. Stamp Duty (on Buy only)
+        if action_upper == "BUY":
+            stamp_duty = round_currency(turnover * cls.CNC_STAMP_DUTY_PCT if mode_upper == "CNC" else turnover * cls.MIS_STAMP_DUTY_PCT)
+        else:
+            stamp_duty = Decimal("0.00")
+
+        # 6. GST (18% on Brokerage + Txn Charges + SEBI)
+        gst = round_currency((brokerage + txn_charges + sebi_charges) * cls.GST_PCT)
+
+        # 7. DP Charges (CNC sell only)
+        dp_charges = cls.DP_CHARGE_PER_ISIN if (mode_upper == "CNC" and action_upper == "SELL" and not dp_charged) else Decimal("0.00")
+
+        # 8. Slippage
+        slip_rate = slippage_pct if slippage_pct is not None else cls.SLIPPAGE_PCT
+        slippage = round_currency(turnover * slip_rate)
+
+        total_charges = (
+            brokerage
+            + stt
+            + txn_charges
+            + gst
+            + sebi_charges
+            + stamp_duty
+            + dp_charges
+            + slippage
+        )
+
+        return CostResult(
+            rate_card_version=rate_card_version or cls.DEFAULT_RATE_CARD_VERSION,
+            turnover=turnover,
+            buy_turnover=buy_turnover,
+            sell_turnover=sell_turnover,
+            brokerage=brokerage,
+            stt_ctt=stt,
+            transaction_charges=txn_charges,
+            gst=gst,
+            sebi_charges=sebi_charges,
+            stamp_duty=stamp_duty,
+            dp_charges=dp_charges,
+            slippage=slippage,
+            total_charges=total_charges,
+        )
+
+    @classmethod
     def calculate_portfolio_costs(
         cls,
         trades: List[Tuple[str, str, int, Decimal, Decimal]],

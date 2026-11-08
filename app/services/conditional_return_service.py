@@ -116,3 +116,50 @@ class ConditionalReturnService:
 
         db.session.commit()
         return est
+
+    @classmethod
+    def get_estimates(
+        cls,
+        ticker: str,
+        horizon: str,
+        mode: str,
+        price: Decimal,
+        reference_notional: Optional[Decimal] = None,
+    ) -> ConditionalReturnEstimate:
+        """Retrieve stored estimates or compute via fallback chain (EXP-08, EXP-11)."""
+        ref_notional = reference_notional if reference_notional is not None else Decimal("500.00")
+        try:
+            stored = db.session.execute(
+                select(ConditionalReturnEstimate).where(
+                    ConditionalReturnEstimate.ticker == ticker,
+                    ConditionalReturnEstimate.horizon == horizon,
+                    ConditionalReturnEstimate.mode == mode,
+                )
+            ).scalar_one_or_none()
+            if stored is not None:
+                return stored
+        except Exception:
+            pass  # In case DB is not available or during testing
+
+        # Compute fallback
+        g_plus_rate, g_minus_rate, source, method_ver = cls.estimate_conditional_returns(
+            ticker=ticker,
+            horizon=horizon,
+            mode=mode,
+        )
+        # Convert rate to per-share magnitude: price * rate
+        g_plus = (price * g_plus_rate).quantize(Decimal("0.000001"))
+        g_minus = (price * g_minus_rate).quantize(Decimal("0.000001"))
+
+        return ConditionalReturnEstimate(
+            ticker=ticker,
+            horizon=horizon,
+            mode=mode,
+            g_plus=g_plus,
+            g_minus=g_minus,
+            estimate_source=source,
+            method_version=method_ver,
+            sample_count=0,
+            calculated_at=Clock.utcnow(),
+        )
+
