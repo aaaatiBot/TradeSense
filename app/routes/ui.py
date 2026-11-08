@@ -15,6 +15,13 @@ def login_view():
     return render_template("login.html", disclaimers=disclaimers)
 
 
+@ui_bp.route("/register", methods=["GET"])
+def register_view():
+    """Register screen with mandatory disclaimer per SRS §15.1."""
+    disclaimers = DisclaimerService.get_disclaimers("login")
+    return render_template("auth/register.html", disclaimers=disclaimers)
+
+
 @ui_bp.route("/dashboard", methods=["GET"])
 def dashboard_view():
     """Dashboard screen with mandatory disclaimer per SRS §15.1."""
