@@ -41,20 +41,36 @@
                   <td>
                     <div class="d-flex px-3 py-1">
                       <div class="d-flex flex-column justify-content-center">
-                        <h6 class="mb-0 text-sm font-weight-bold">#{{ t.trade_id }}</h6>
-                        <p class="text-xs text-secondary mb-0">{{ t.opened_at[:10] if t.opened_at else 'Active' }}</p>
+                        <h6 class="mb-0 text-sm font-weight-bold">#{{ t.trade_id | default(t.id) }}</h6>
+                        <p class="text-xs text-secondary mb-0">
+                          {% if t.opened_at is string %}
+                            {{ t.opened_at[:10] }}
+                          {% elif t.opened_at is defined and t.opened_at %}
+                            {{ t.opened_at.strftime('%Y-%m-%d') }}
+                          {% else %}
+                            Active
+                          {% endif %}
+                        </p>
                       </div>
                     </div>
                   </td>
                   <td>
-                    <p class="text-xs font-weight-bold mb-0">{{ t.tickers | default('RELIANCE, INFY') }}</p>
+                    <p class="text-xs font-weight-bold mb-0">
+                      {% if t.tickers is defined and t.tickers %}
+                        {{ t.tickers }}
+                      {% elif t.legs is defined and t.legs %}
+                        {{ t.legs | map(attribute='ticker') | join(', ') }}
+                      {% else %}
+                        EQUITY
+                      {% endif %}
+                    </p>
                     <p class="text-xxs text-secondary mb-0">{{ t.mode | default('CNC') }}</p>
                   </td>
                   <td class="align-middle text-center text-sm">
-                    <span class="text-xs font-weight-bold text-secondary font-monospace">{{ t.expected_pnl | default(0) | inr }}</span>
+                    <span class="text-xs font-weight-bold text-secondary font-monospace">{{ t.expected_pnl | default(t.total_modeled_costs | default(0)) | inr }}</span>
                   </td>
                   <td class="align-middle text-center text-sm">
-                    {% set r_net = t.realized_net_pnl | default(0) | float %}
+                    {% set r_net = (t.realized_net_pnl | default(t.total_net_pnl | default(0))) | float %}
                     <span class="text-xs font-weight-bolder {% if r_net >= 0 %}text-success{% else %}text-danger{% endif %} font-monospace">
                       {% if r_net >= 0 %}+{% endif %}{{ r_net | inr }}
                     </span>
@@ -73,8 +89,8 @@
                     <span class="status-chip status-chip-anchored"><i class="bi bi-shield-check"></i> Anchored</span>
                   </td>
                   <td class="align-middle text-end pe-3">
-                    <div id="verify-slot-{{ t.trade_id }}">
-                      <a href="/verification?hash={{ t.tx_hash | default(t.trade_id) }}" 
+                    <div id="verify-slot-{{ t.trade_id | default(t.id) }}">
+                      <a href="/verification?hash={{ t.tx_hash | default(t.commitment_hash | default(t.id)) }}" 
                          class="btn btn-sm btn-outline-primary mb-0 py-1 px-2 text-xs">
                         <i class="bi bi-patch-check me-1"></i> Verify
                       </a>

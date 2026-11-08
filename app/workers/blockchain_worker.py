@@ -61,6 +61,19 @@ class BlockchainWorker:
         db.session.commit()
         return job
 
+    @classmethod
+    def drain_all_jobs(cls, limit: int = 10) -> int:
+        """Process up to limit pending jobs synchronously (for local testing/dev flows)."""
+        worker = cls()
+        processed = 0
+        for _ in range(limit):
+            job = worker.claim_next_job()
+            if not job:
+                break
+            worker.process_job(job)
+            processed += 1
+        return processed
+
     def claim_next_job(self) -> Optional[JobQueue]:
         """Atomically claim the next eligible job via lease locking (AT-29, AT-26).
         

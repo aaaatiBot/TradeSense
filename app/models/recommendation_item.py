@@ -41,5 +41,24 @@ class RecommendationItem(db.Model):
         DateTime(timezone=True), default=get_current_time, nullable=False
     )
 
+    @property
+    def entry_price(self) -> Decimal:
+        """Calculated entry price per share based on allocated capital and quantity."""
+        if self.quantity and self.quantity > 0:
+            return (self.allocated_amount / Decimal(str(self.quantity))).quantize(Decimal("0.01"))
+        return Decimal("0.00")
+
+    @property
+    def shares(self) -> int:
+        return self.quantity
+
+    @property
+    def allocated_capital(self) -> Decimal:
+        return self.allocated_amount
+
+    @property
+    def expected_net_pnl(self) -> Decimal:
+        return self.expected_return_rate
+
     recommendation = relationship("Recommendation", back_populates="items")
     stock = relationship("Stock")

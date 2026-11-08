@@ -1,13 +1,13 @@
 """Authentication routes per SRS §4.1 (FR-AUTH) and §7.18.3."""
 from __future__ import annotations
 
-from flask import Blueprint, current_app, g, redirect, request, session, url_for
+from flask import Blueprint, current_app, flash, g, redirect, request, session, url_for
 
 from app.extensions import get_supabase, limiter
 from app.models.user import User
 from app.services.auth_service import AuthService, AuthenticationError
 from app.utils.clock import Clock
-from app.utils.decorators import require_auth
+from app.utils.decorators import get_token_from_header, require_auth
 from app.utils.response import api_error, api_success
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/v1/auth")
@@ -17,13 +17,16 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/api/v1/auth")
 @limiter.limit("20 per minute")
 def register():
     """Register a new user account (AUTH-01, AUTH-02) with Supabase Auth synchronization."""
-    payload = request.get_json() or {}
+    payload = request.get_json(silent=True) or request.form.to_dict() or {}
     email = payload.get("email")
     password = payload.get("password")
     role = payload.get("role", "user")
 
     if not email or not password:
-        return api_error(code="MISSING_CREDENTIALS", message="Email and password are required", status_code=400)
+        if request.is_json:
+            return api_error(code="MISSING_CREDENTIALS", message="Email and password are required", status_code=400)
+        flash("Email and password are required", "danger")
+        return redirect(url_for("ui.register_view"))
 
     try:
         # Sync with Supabase Auth if client is configured
@@ -39,29 +42,47 @@ def register():
 
         # Local user persistence
         user = AuthService.register_user(email=email, password=password, role=role)
+        
+        # Automatically establish active session
+        user, raw_token, expires_at = AuthService.login_user(
+            email=email, password=password, user_agent=request.headers.get("User-Agent"), ip_address=request.remote_addr
+        )
         session["user_id"] = user.id
         session["user_email"] = user.email
+        session["session_token"] = raw_token
 
-        return api_success(
-            data={"user_id": user.id, "email": user.email, "role": user.role, "supabase_uid": supabase_uid},
-            status_code=201,
-        )
+        if request.is_json:
+            return api_success(
+                data={"user_id": user.id, "email": user.email, "role": user.role, "supabase_uid": supabase_uid, "token": raw_token},
+                status_code=201,
+            )
+        flash("Registration successful! Welcome to TradeSense.", "success")
+        return redirect(url_for("ui.dashboard_view"))
     except AuthenticationError as exc:
-        return api_error(code=exc.code, message=exc.message, status_code=exc.status_code)
+        if request.is_json:
+            return api_error(code=exc.code, message=exc.message, status_code=exc.status_code)
+        flash(exc.message, "danger")
+        return redirect(url_for("ui.register_view"))
     except Exception as exc:
-        return api_error(code="REGISTRATION_FAILED", message=str(exc), status_code=500)
+        if request.is_json:
+            return api_error(code="REGISTRATION_FAILED", message=str(exc), status_code=500)
+        flash(str(exc), "danger")
+        return redirect(url_for("ui.register_view"))
 
 
 @auth_bp.route("/login", methods=["POST"])
 @limiter.limit("10 per minute")
 def login():
     """Authenticate credentials via Supabase / AuthService and set session (AUTH-03, AUTH-04, AUTH-05)."""
-    payload = request.get_json() or {}
+    payload = request.get_json(silent=True) or request.form.to_dict() or {}
     email = payload.get("email")
     password = payload.get("password")
 
     if not email or not password:
-        return api_error(code="MISSING_CREDENTIALS", message="Email and password are required", status_code=400)
+        if request.is_json:
+            return api_error(code="MISSING_CREDENTIALS", message="Email and password are required", status_code=400)
+        flash("Email and password are required", "danger")
+        return redirect(url_for("ui.login_view"))
 
     user_agent = request.headers.get("User-Agent")
     ip_address = request.remote_addr
@@ -85,28 +106,39 @@ def login():
         session["user_email"] = user.email
         session["session_token"] = raw_token
 
-        return api_success(
-            data={
-                "token": raw_token,
-                "supabase_token": sb_token,
-                "expires_at": expires_at.isoformat(),
-                "user": {"id": user.id, "email": user.email, "role": user.role},
-            },
-            status_code=200,
-        )
+        if request.is_json:
+            return api_success(
+                data={
+                    "token": raw_token,
+                    "supabase_token": sb_token,
+                    "expires_at": expires_at.isoformat(),
+                    "user": {"id": user.id, "email": user.email, "role": user.role},
+                },
+                status_code=200,
+            )
+        flash("Signed in successfully!", "success")
+        return redirect(url_for("ui.dashboard_view"))
     except AuthenticationError as exc:
-        return api_error(code=exc.code, message=exc.message, status_code=exc.status_code)
+        if request.is_json:
+            return api_error(code=exc.code, message=exc.message, status_code=exc.status_code)
+        flash(exc.message, "danger")
+        return redirect(url_for("ui.login_view"))
     except Exception as exc:
-        return api_error(code="LOGIN_FAILED", message=str(exc), status_code=500)
+        if request.is_json:
+            return api_error(code="LOGIN_FAILED", message=str(exc), status_code=500)
+        flash(str(exc), "danger")
+        return redirect(url_for("ui.login_view"))
 
 
-@auth_bp.route("/logout", methods=["POST"])
-@require_auth
+@auth_bp.route("/logout", methods=["GET", "POST"])
 def logout():
     """Revoke active session in AuthService and Supabase (AUTH-06)."""
-    token = getattr(g, "raw_token", None)
+    token = get_token_from_header() or session.get("session_token")
     if token:
-        AuthService.logout_session(token)
+        try:
+            AuthService.logout_session(token)
+        except Exception:
+            pass
 
     supabase = get_supabase()
     if supabase:

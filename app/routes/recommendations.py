@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 import json
-from flask import Blueprint, g, request
+from flask import Blueprint, flash, g, redirect, request, url_for
 from sqlalchemy import func
 
 from app.extensions import db
@@ -17,12 +17,14 @@ from app.models.reference_notional_config import ReferenceNotionalConfig
 from app.models.stock import Stock
 from app.services.cost_engine import CostEngine
 from app.services.expected_return_service import ExpectedReturnService
+from app.services.market_data_service import MarketDataService
 from app.services.optimizer_service import OptimizerService
 from app.services.universe_service import UniverseService
 from app.utils.clock import Clock
 from app.utils.decorators import require_auth
 from app.utils.metrics import metrics
 from app.utils.response import api_error, api_success
+from app.workers.blockchain_worker import BlockchainWorker
 
 recommendations_bp = Blueprint("recommendations", __name__, url_prefix="/api/v1/recommendations")
 
@@ -32,31 +34,43 @@ recommendations_bp = Blueprint("recommendations", __name__, url_prefix="/api/v1/
 def generate_recommendations():
     """Generate risk-budgeted stock allocation recommendations per SRS §4.2, §4.5, §4.6."""
     user = g.current_user
-    body = request.get_json() or {}
+    body = request.get_json(silent=True) or request.form.to_dict() or {}
 
     raw_budget = body.get("budget")
     if raw_budget is None:
-        return api_error(code="VALIDATION_ERROR", message="Budget is required", status_code=400)
+        if request.is_json:
+            return api_error(code="VALIDATION_ERROR", message="Budget is required", status_code=400)
+        flash("Budget is required", "warning")
+        return redirect(url_for("ui.dashboard_view"))
 
     try:
         budget = Decimal(str(raw_budget))
     except Exception:
-        return api_error(code="VALIDATION_ERROR", message="Invalid budget format", status_code=400)
+        if request.is_json:
+            return api_error(code="VALIDATION_ERROR", message="Invalid budget format", status_code=400)
+        flash("Invalid budget format", "warning")
+        return redirect(url_for("ui.dashboard_view"))
 
     if budget < Decimal("500") or budget > Decimal("1000000"):
-        return api_error(
-            code="BUDGET_OUT_OF_BOUNDS",
-            message="Budget must be between ₹500 and ₹1,000,000 per SRS §4.2",
-            status_code=400,
-        )
+        if request.is_json:
+            return api_error(
+                code="BUDGET_OUT_OF_BOUNDS",
+                message="Budget must be between ₹500 and ₹1,000,000 per SRS §4.2",
+                status_code=400,
+            )
+        flash("Budget must be between ₹500 and ₹10,00,000 per SRS §4.2", "warning")
+        return redirect(url_for("ui.dashboard_view"))
 
     trade_mode = body.get("trade_mode", "CNC").upper()
     if trade_mode not in ["CNC", "MIS"]:
-        return api_error(
-            code="INVALID_TRADE_MODE",
-            message="Trade mode must be 'CNC' or 'MIS'",
-            status_code=400,
-        )
+        if request.is_json:
+            return api_error(
+                code="INVALID_TRADE_MODE",
+                message="Trade mode must be 'CNC' or 'MIS'",
+                status_code=400,
+            )
+        flash("Trade mode must be CNC or MIS", "warning")
+        return redirect(url_for("ui.dashboard_view"))
 
     horizon = body.get("horizon", "1d")
 
@@ -65,11 +79,14 @@ def generate_recommendations():
     if not active_stocks:
         active_stocks = Stock.query.filter(func.lower(Stock.status) == "active").all()
     if not active_stocks:
-        return api_error(
-            code="NO_ACTIVE_STOCKS",
-            message="Stock universe is empty or inactive",
-            status_code=409,
-        )
+        if request.is_json:
+            return api_error(
+                code="NO_ACTIVE_STOCKS",
+                message="Stock universe is empty or inactive",
+                status_code=409,
+            )
+        flash("Stock universe is empty or inactive", "danger")
+        return redirect(url_for("ui.dashboard_view"))
 
     # 2. Reference notional & active model
     ref_config = ReferenceNotionalConfig.query.filter_by(is_active=True).first()
@@ -77,7 +94,6 @@ def generate_recommendations():
 
     active_model = ModelVersion.query.filter_by(is_active=True).first()
     if not active_model:
-        # Fallback to any model or create a default
         active_model = ModelVersion.query.first()
     model_version_id = active_model.id if active_model else 1
 
@@ -94,12 +110,18 @@ def generate_recommendations():
     isin_map = {}
     stock_obj_map = {}
     for stock in active_stocks:
-        latest_price_row = (
-            Price.query.filter_by(stock_id=stock.id)
-            .order_by(Price.timestamp.desc())
-            .first()
-        )
-        price = latest_price_row.close if latest_price_row else getattr(stock, "last_price", None) or Decimal("100.00")
+        price = None
+        try:
+            quote = MarketDataService.get_quote(stock.ticker)
+            price = quote["price"]
+        except Exception:
+            latest_price_row = (
+                Price.query.filter_by(stock_id=stock.id)
+                .order_by(Price.timestamp.desc())
+                .first()
+            )
+            price = latest_price_row.close if latest_price_row else getattr(stock, "last_price", None) or Decimal("100.00")
+
         if price <= Decimal("0"):
             continue
 
@@ -127,11 +149,14 @@ def generate_recommendations():
     )
 
     if allocation_result.status != "SUCCESS" or not allocation_result.positions:
-        return api_error(
-            code="NO_AFFORDABLE_ALLOCATION",
-            message="No affordable allocation found under the specified budget and position constraints",
-            status_code=400,
-        )
+        if request.is_json:
+            return api_error(
+                code="NO_AFFORDABLE_ALLOCATION",
+                message="No affordable allocation found under the specified budget and position constraints",
+                status_code=400,
+            )
+        flash("No affordable stock allocation found for this budget. Try increasing capital or using MIS leverage.", "warning")
+        return redirect(url_for("ui.dashboard_view"))
 
     # 6. Persist Recommendation record (§7.5)
     recommendation = Recommendation(
@@ -195,20 +220,22 @@ def generate_recommendations():
 
     metrics.inc_recommendations_created()
 
-    return api_success(
-        data={
-            "id": recommendation.id,
-            "budget": str(budget),
-            "trade_mode": trade_mode,
-            "reference_notional": str(reference_notional),
-            "total_deployed": str(allocation_result.total_allocated),
-            "total_estimated_costs": str(allocation_result.total_modeled_costs),
-            "total_expected_net_pnl": str(allocation_result.expected_net_pnl),
-            "items": items_out,
-            "blockchain_status": "QUEUED",
-        },
-        status_code=201,
-    )
+    if request.is_json:
+        return api_success(
+            data={
+                "id": recommendation.id,
+                "budget": str(budget),
+                "trade_mode": trade_mode,
+                "reference_notional": str(reference_notional),
+                "total_deployed": str(allocation_result.total_allocated),
+                "total_estimated_costs": str(allocation_result.total_modeled_costs),
+                "total_expected_net_pnl": str(allocation_result.expected_net_pnl),
+                "items": items_out,
+                "blockchain_status": "QUEUED",
+            },
+            status_code=201,
+        )
+    return redirect(url_for("ui.recommendation_view", id=recommendation.id))
 
 
 @recommendations_bp.route("/<int:rec_id>", methods=["GET"])
@@ -221,6 +248,31 @@ def get_recommendation(rec_id: int):
 
     if rec.user_id != g.current_user.id and g.current_user.role != "admin":
         return api_error(code="FORBIDDEN", message="Access denied", status_code=403)
+
+    if request.headers.get("HX-Request"):
+        chip_status = rec.status or "SUBMITTED"
+        if chip_status == "ANCHORED":
+            html = f'''<div id="blockchain-chip-container">
+              <span class="status-chip status-chip-anchored blockchain-status-chip" data-status="ANCHORED">
+                <i class="bi bi-shield-check"></i> Anchored On-Chain
+              </span>
+            </div>'''
+        elif chip_status == "FAILED":
+            html = f'''<div id="blockchain-chip-container">
+              <span class="status-chip status-chip-failed blockchain-status-chip" data-status="FAILED">
+                <i class="bi bi-x-circle"></i> Anchoring Failed
+              </span>
+            </div>'''
+        else:
+            html = f'''<div id="blockchain-chip-container" 
+                 hx-get="/api/v1/recommendations/{rec.id}" 
+                 hx-trigger="load delay:2s, every 2s" 
+                 hx-swap="outerHTML">
+              <span class="status-chip status-chip-pending blockchain-status-chip" data-status="{chip_status}">
+                <i class="bi bi-clock-history"></i> Blockchain: {chip_status}
+              </span>
+            </div>'''
+        return html, 200, {"Content-Type": "text/html"}
 
     items = RecommendationItem.query.filter_by(recommendation_id=rec.id).all()
     return api_success(

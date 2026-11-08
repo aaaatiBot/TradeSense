@@ -20,6 +20,11 @@ def get_token_from_header() -> Optional[str]:
         if len(parts) == 2 and parts[0].lower() == "bearer":
             return parts[1]
 
+    # Check session token in session if present
+    sess_token = session.get("session_token")
+    if sess_token:
+        return sess_token
+
     # Check Supabase access_token in session if present
     sb_token = session.get("sb_access_token")
     if sb_token:
