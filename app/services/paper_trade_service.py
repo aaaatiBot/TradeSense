@@ -312,6 +312,16 @@ class PaperTradeService:
         if force_delisted:
             trade.affected_by_universe_change = True
 
+        # Enqueue blockchain anchoring of trade result commitment per §7.14 and FR-AUD
+        from app.models.job import JobQueue
+        anchor_job = JobQueue(
+            job_type="anchor_trade_result",
+            payload=json.dumps({"trade_id": trade.id}),
+            status="QUEUED",
+            created_at=now,
+        )
+        db.session.add(anchor_job)
+
         db.session.commit()
         return trade
 

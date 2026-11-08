@@ -40,8 +40,8 @@ def get_admin_overview():
     recent_anchor_failures = [
         {
             "id": f.id,
-            "entity_type": f.entity_type,
-            "entity_id": f.entity_id,
+            "entity_type": f.record_type,
+            "entity_id": f.reference_id,
             "error": f.error_message,
         }
         for f in failures
