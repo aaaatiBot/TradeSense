@@ -38,7 +38,7 @@ class JobWorker(BlockchainWorker):
         lease_duration_seconds: int = 60,
         live_tick_service: Optional[LiveTickService] = None,
         tick_agg_interval_seconds: int = 60,
-        news_poll_interval_seconds: int = 300,
+        news_poll_interval_seconds: Optional[int] = None,
         sentiment_interval_seconds: int = 300,
         app=None,
     ) -> None:
@@ -46,7 +46,11 @@ class JobWorker(BlockchainWorker):
         self.app = app
         self.live_tick_service = live_tick_service or LiveTickService(app=app)
         self.tick_agg_interval = tick_agg_interval_seconds
-        self.news_poll_interval = news_poll_interval_seconds
+        self.news_poll_interval = (
+            news_poll_interval_seconds
+            if news_poll_interval_seconds is not None
+            else int(os.getenv("NEWS_POLL_INTERVAL_SECONDS", "60"))
+        )
         self.sentiment_interval = sentiment_interval_seconds
 
         self._stop_event = threading.Event()
@@ -128,12 +132,15 @@ class JobWorker(BlockchainWorker):
             while not self._stop_event.is_set():
                 now_mono = time.monotonic()
                 try:
+                    is_market = LiveTickService.is_market_hours()
+                    poll_interval = min(60, self.news_poll_interval) if is_market else self.news_poll_interval
+
                     if self.app:
                         with self.app.app_context():
                             if now_mono - last_tick_agg >= self.tick_agg_interval:
                                 self.enqueue_job("tick_aggregate", {"lookback_minutes": 5})
                                 last_tick_agg = now_mono
-                            if now_mono - last_news_poll >= self.news_poll_interval:
+                            if now_mono - last_news_poll >= poll_interval:
                                 self.enqueue_job("news_poll", {})
                                 last_news_poll = now_mono
                             if now_mono - last_sentiment >= self.sentiment_interval:
@@ -143,7 +150,7 @@ class JobWorker(BlockchainWorker):
                         if now_mono - last_tick_agg >= self.tick_agg_interval:
                             self.enqueue_job("tick_aggregate", {"lookback_minutes": 5})
                             last_tick_agg = now_mono
-                        if now_mono - last_news_poll >= self.news_poll_interval:
+                        if now_mono - last_news_poll >= poll_interval:
                             self.enqueue_job("news_poll", {})
                             last_news_poll = now_mono
                         if now_mono - last_sentiment >= self.sentiment_interval:
@@ -152,7 +159,7 @@ class JobWorker(BlockchainWorker):
                 except Exception as exc:
                     logger.error(f"Error in scheduler loop: {exc}")
 
-                time.sleep(5.0)
+                time.sleep(2.0)
 
         self._worker_thread = threading.Thread(target=_job_loop, daemon=True, name=f"JobWorker-{self.worker_id}")
         self._scheduler_thread = threading.Thread(target=_scheduler_loop, daemon=True, name="JobScheduler")

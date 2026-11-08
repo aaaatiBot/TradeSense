@@ -28,6 +28,8 @@ class NewsIngestionService:
     DEFAULT_FEEDS = [
         "https://feeds.feedburner.com/ndtvprofit-latest",
         "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms",
+        "https://www.moneycontrol.com/rss/marketreports.xml",
+        "https://www.livemint.com/rss/markets",
     ]
 
     @staticmethod

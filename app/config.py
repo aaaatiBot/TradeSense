@@ -73,7 +73,7 @@ class BaseConfig:
     # Continuous News Ingestion
     NEWS_RSS_FEEDS: str = os.getenv(
         "NEWS_RSS_FEEDS",
-        "https://feeds.feedburner.com/ndtvprofit-latest,https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms",
+        "https://feeds.feedburner.com/ndtvprofit-latest,https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms,https://www.moneycontrol.com/rss/marketreports.xml,https://www.livemint.com/rss/markets",
     )
     NEWS_POLL_INTERVAL_SECONDS: int = int(os.getenv("NEWS_POLL_INTERVAL_SECONDS", "60"))
 
