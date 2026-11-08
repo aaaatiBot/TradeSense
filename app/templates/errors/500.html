@@ -1,0 +1,39 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}System Error - TradeSense{% endblock %}
+{% block page_title %}500 Error{% endblock %}
+{% block page_header %}Internal System Issue{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6 col-md-8 text-center my-5">
+    <div class="card shadow-soft p-5 border-0">
+      <div class="mb-3">
+        <span class="badge badge-pill badge-loss fs-6 py-2 px-3">HTTP 500</span>
+      </div>
+      <h2 class="font-weight-bolder text-slate-800 mb-2">Unexpected Service Incident</h2>
+      <p class="text-sm text-secondary mb-4">
+        An unexpected server condition occurred while processing your financial simulation request. Our telemetry monitors have recorded this incident.
+      </p>
+
+      {% if g and g.request_id %}
+      <div class="p-3 bg-light border-radius-md mb-4 text-start">
+        <span class="text-xxs text-uppercase text-secondary font-weight-bold d-block mb-1">Diagnostic Incident Token</span>
+        <div class="d-flex align-items-center justify-content-between">
+          <code class="text-xs text-dark font-monospace" id="request-id-display">{{ g.request_id }}</code>
+          <button class="btn btn-sm btn-outline-secondary py-1 px-2 text-xxs mb-0" onclick="navigator.clipboard.writeText('{{ g.request_id }}')">
+            Copy
+          </button>
+        </div>
+      </div>
+      {% endif %}
+
+      <div>
+        <a href="/dashboard" class="btn btn-gradient-primary">
+          <i class="bi bi-arrow-counterclockwise me-1"></i> Return to Safe State
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

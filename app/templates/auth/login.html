@@ -1,0 +1,54 @@
+{% extends "layouts/base-auth.html" %}
+
+{% block title %}Sign In - TradeSense{% endblock %}
+
+{% block content %}
+<div class="card z-index-0 shadow-soft">
+  <div class="card-header text-center pt-4 pb-1">
+    <h5 class="font-weight-bolder">Welcome Back</h5>
+    <p class="mb-0 text-xs text-muted">Enter your email and password to access your simulation ledger</p>
+  </div>
+  <div class="card-body">
+    <form role="form" method="POST" action="/api/v1/auth/login" id="login-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token | default('') }}" />
+      
+      <div class="mb-3">
+        <label for="email" class="form-label text-xs font-weight-bold text-secondary">Email Address</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+          <input type="email" class="form-control" id="email" name="email" placeholder="name@example.com" required autocomplete="email" />
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <label for="password" class="form-label text-xs font-weight-bold text-secondary">Password</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-shield-lock"></i></span>
+          <input type="password" class="form-control" id="password" name="password" placeholder="••••••••" required autocomplete="current-password" />
+        </div>
+      </div>
+
+      <div class="form-check form-switch ps-0 mb-3">
+        <input class="form-check-input ms-0 me-2" type="checkbox" id="rememberMe" checked />
+        <label class="form-check-label text-xs text-secondary" for="rememberMe">Remember my device</label>
+      </div>
+
+      <div class="text-center">
+        <button type="submit" class="btn btn-gradient-primary w-100 my-3">Sign In</button>
+      </div>
+    </form>
+
+    <div class="text-center pt-0 px-lg-2 px-1">
+      <p class="mb-2 text-xs mx-auto text-secondary">
+        Don't have an account?
+        <a href="/register" class="text-primary font-weight-bold">Sign up</a>
+      </p>
+    </div>
+
+    <!-- Mandatory Statutory Disclaimer (§15.1 & AT-43) -->
+    {% with screen='login' %}
+      {% include 'partials/disclaimer.html' %}
+    {% endwith %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,26 @@
+{# Flash messages partial styled with Soft UI alerts #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-messages-container mb-3">
+      {% for category, message in messages %}
+        {% set alert_cls = 'alert-info' %}
+        {% set icon_cls = 'bi-info-circle-fill' %}
+        {% if category in ['error', 'danger'] %}
+          {% set alert_cls = 'alert-danger bg-gradient-danger text-white' %}
+          {% set icon_cls = 'bi-exclamation-triangle-fill' %}
+        {% elif category == 'success' %}
+          {% set alert_cls = 'alert-success bg-gradient-success text-white' %}
+          {% set icon_cls = 'bi-check-circle-fill' %}
+        {% elif category == 'warning' %}
+          {% set alert_cls = 'alert-warning bg-gradient-warning text-dark' %}
+          {% set icon_cls = 'bi-exclamation-circle-fill' %}
+        {% endif %}
+        <div class="alert {{ alert_cls }} alert-dismissible fade show shadow-soft-sm rounded-3 d-flex align-items-center" role="alert">
+          <i class="bi {{ icon_cls }} me-2 fs-5"></i>
+          <div>{{ message }}</div>
+          <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}

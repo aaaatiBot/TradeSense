@@ -1,0 +1,23 @@
+{# Status Chip Partial (Blockchain & Trade Statuses) #}
+{% set raw_status = status | default('PENDING') | upper %}
+{% if raw_status in ['ANCHORED', 'CONFIRMED', 'CLOSED', 'MATCH', 'SUCCESS'] %}
+  <span class="status-chip status-chip-anchored blockchain-status-chip" data-status="{{ raw_status }}">
+    <i class="bi bi-shield-check"></i>
+    <span>{{ raw_status }}</span>
+  </span>
+{% elif raw_status in ['SUBMITTED', 'OPEN', 'PROCESSING'] %}
+  <span class="status-chip status-chip-submitted blockchain-status-chip" data-status="{{ raw_status }}">
+    <i class="bi bi-arrow-repeat"></i>
+    <span>{{ raw_status }}</span>
+  </span>
+{% elif raw_status in ['FAILED', 'MISMATCH', 'ERROR'] %}
+  <span class="status-chip status-chip-failed blockchain-status-chip" data-status="{{ raw_status }}">
+    <i class="bi bi-x-circle"></i>
+    <span>{{ raw_status }}</span>
+  </span>
+{% else %}
+  <span class="status-chip status-chip-pending blockchain-status-chip" data-status="{{ raw_status }}">
+    <i class="bi bi-clock-history"></i>
+    <span>{{ raw_status }}</span>
+  </span>
+{% endif %}

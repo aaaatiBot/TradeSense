@@ -1,0 +1,49 @@
+{# Itemized Transaction Charges Table Partial per SRS §4.7 and §10.3 #}
+<div class="table-responsive">
+  <table class="table table-sm charge-table align-middle">
+    <thead class="text-xs text-uppercase text-secondary bg-light">
+      <tr>
+        <th scope="col">Cost Component</th>
+        <th scope="col" class="text-end">Simulated Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Brokerage</td>
+        <td class="text-end font-monospace">{{ charges.brokerage | default(0) | inr }}</td>
+      </tr>
+      <tr>
+        <td>Securities Transaction Tax (STT)</td>
+        <td class="text-end font-monospace">{{ charges.stt | default(0) | inr }}</td>
+      </tr>
+      <tr>
+        <td>Exchange Turnover Charges</td>
+        <td class="text-end font-monospace">{{ charges.exchange | default(charges.exchange_turnover_charges | default(0)) | inr }}</td>
+      </tr>
+      <tr>
+        <td>SEBI Turnover Charges</td>
+        <td class="text-end font-monospace">{{ charges.sebi | default(charges.sebi_charges | default(0)) | inr }}</td>
+      </tr>
+      <tr>
+        <td>Stamp Duty</td>
+        <td class="text-end font-monospace">{{ charges.stamp | default(charges.stamp_duty | default(0)) | inr }}</td>
+      </tr>
+      <tr>
+        <td>Goods & Services Tax (GST)</td>
+        <td class="text-end font-monospace">{{ charges.gst | default(0) | inr }}</td>
+      </tr>
+      <tr>
+        <td>Depository Participant (DP) Charges</td>
+        <td class="text-end font-monospace">{{ charges.dp | default(charges.dp_charges | default(0)) | inr }}</td>
+      </tr>
+      <tr>
+        <td>Estimated Slippage</td>
+        <td class="text-end font-monospace">{{ charges.slippage | default(0) | inr }}</td>
+      </tr>
+      <tr class="charge-total-row table-light">
+        <td class="font-weight-bold text-dark">Total Modeled Friction</td>
+        <td class="text-end font-weight-bolder text-dark font-monospace">{{ charges.total | default(charges.total_modeled_costs | default(0)) | inr }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

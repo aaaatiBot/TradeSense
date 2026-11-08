@@ -1,0 +1,34 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Page Not Found - TradeSense{% endblock %}
+{% block page_title %}404 Error{% endblock %}
+{% block page_header %}Resource Not Located{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-6 col-md-8 text-center my-5">
+    <div class="card shadow-soft p-5">
+      <div class="mb-3">
+        <span class="badge badge-pill badge-neutral fs-6 py-2 px-3">HTTP 404</span>
+      </div>
+      <h2 class="font-weight-bolder text-slate-800 mb-2">Page Not Found</h2>
+      <p class="text-sm text-secondary mb-4">
+        The requested simulated view or resource does not exist or has been relocated.
+      </p>
+
+      {% if g and g.request_id %}
+      <div class="p-2 bg-light border-radius-md mb-4">
+        <span class="text-xxs text-uppercase text-secondary font-weight-bold d-block">Trace Request ID</span>
+        <span class="text-xs font-monospace text-dark">{{ g.request_id }}</span>
+      </div>
+      {% endif %}
+
+      <div>
+        <a href="/dashboard" class="btn btn-gradient-primary">
+          <i class="bi bi-house-door me-1"></i> Return to Dashboard
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

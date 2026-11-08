@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48" fill="none">
+  <defs>
+    <linearGradient id="ts-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7928ca" />
+      <stop offset="100%" stop-color="#ff0080" />
+    </linearGradient>
+    <linearGradient id="ts-bar-grad" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#5e72e4" />
+      <stop offset="100%" stop-color="#825ee4" />
+    </linearGradient>
+  </defs>
+  <!-- Brand Icon -->
+  <rect x="4" y="6" width="36" height="36" rx="10" fill="url(#ts-grad)" />
+  <path d="M12 28 L18 22 L24 26 L32 16" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  <polyline points="28,16 32,16 32,20" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  <!-- Brand Name -->
+  <text x="50" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="700" fill="#252f40" letter-spacing="-0.5">Trade<tspan fill="url(#ts-grad)">Sense</tspan></text>
+</svg>

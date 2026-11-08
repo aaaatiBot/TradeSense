@@ -1,16 +1,1 @@
-{% extends "base.html" %}
-{% block title %}TradeSense - Login{% endblock %}
-{% block content %}
-<h2>Investor Login</h2>
-<form method="POST" action="/api/v1/auth/login">
-    <div>
-        <label for="email">Email</label><br>
-        <input type="email" id="email" name="email" required>
-    </div>
-    <div style="margin-top: 10px;">
-        <label for="password">Password</label><br>
-        <input type="password" id="password" name="password" required>
-    </div>
-    <button type="submit" style="margin-top: 16px;">Sign In</button>
-</form>
-{% endblock %}
+{% extends "auth/login.html" %}

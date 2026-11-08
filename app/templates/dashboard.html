@@ -1,18 +1,175 @@
-{% extends "base.html" %}
-{% block title %}TradeSense - Dashboard{% endblock %}
+{% extends "layouts/base.html" %}
+
+{% block title %}Dashboard - TradeSense{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_header %}Portfolio Allocation Simulator{% endblock %}
+
 {% block content %}
-<h2>Trading Dashboard</h2>
-<p>Welcome to TradeSense educational simulated trading portal.</p>
-<div style="background: #f1f5f9; padding: 16px; border-radius: 6px; margin-top: 16px;">
-    <h3>Start a Simulation</h3>
-    <form method="POST" action="/api/v1/recommendations">
-        <label for="budget">Investment Budget (₹):</label>
-        <input type="number" id="budget" name="budget" value="10000" min="500" max="1000000" step="100">
-        <select name="trade_mode">
-            <option value="CNC">CNC (Delivery)</option>
-            <option value="MIS">MIS (Intraday)</option>
-        </select>
-        <button type="submit">Generate Recommendations</button>
-    </form>
+<div class="row">
+  <!-- System Health Dependency Bar (HTMX live status per SRS §5.7.4 & AT-44) -->
+  <div class="col-12 mb-4">
+    <div class="card shadow-soft-sm border-0 py-2 px-3" 
+         hx-get="/api/v1/health" 
+         hx-trigger="load" 
+         hx-swap="none">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div class="d-flex align-items-center">
+          <i class="bi bi-shield-check text-primary fs-5 me-2"></i>
+          <span class="text-xs font-weight-bolder text-uppercase tracking-wider text-secondary">System Dependency Status:</span>
+        </div>
+        <div class="d-flex flex-wrap gap-2" id="health-status-container">
+          <span class="status-chip status-chip-pending" id="health-chip-database">
+            <i class="bi bi-database"></i> Database: Checking...
+          </span>
+          <span class="status-chip status-chip-pending" id="health-chip-market_data">
+            <i class="bi bi-graph-up"></i> Market Data: Checking...
+          </span>
+          <span class="status-chip status-chip-pending" id="health-chip-gemini">
+            <i class="bi bi-cpu"></i> Gemini AI: Checking...
+          </span>
+          <span class="status-chip status-chip-pending" id="health-chip-blockchain">
+            <i class="bi bi-link-45deg"></i> Blockchain: Checking...
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <!-- Budget Allocation Form Card (Soft UI + Spendly pattern) -->
+  <div class="col-lg-7 mb-4">
+    <div class="card shadow-soft h-100">
+      <div class="card-header pb-0">
+        <div class="d-flex align-items-center">
+          <div class="icon-shape icon-md shadow-sm border-radius-md bg-white text-center me-3 d-flex align-items-center justify-content-center text-primary">
+            <i class="bi bi-sliders2 fs-5"></i>
+          </div>
+          <div>
+            <h5 class="mb-0 font-weight-bolder">Risk-Budgeted Allocation Request</h5>
+            <p class="text-xs text-muted mb-0">Define your simulated investment parameter bounds (SRS §4.2)</p>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <form id="recommendation-form" method="POST" action="/api/v1/recommendations">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token | default('') }}" />
+
+          <!-- Budget Input with ₹ Prefix -->
+          <div class="mb-4">
+            <label for="budget-input" class="form-label text-xs font-weight-bold text-secondary text-uppercase">
+              Simulation Budget (INR) <span class="text-danger">*</span>
+            </label>
+            <div class="input-group">
+              <span class="input-group-text font-weight-bold text-dark">₹</span>
+              <input type="number" 
+                     class="form-control form-control-lg font-monospace font-weight-bold" 
+                     id="budget-input" 
+                     name="budget" 
+                     min="500" 
+                     max="1000000" 
+                     step="100" 
+                     value="{{ default_budget | default('50000') }}" 
+                     required />
+            </div>
+            <div class="form-text text-xxs text-muted mt-1">
+              Minimum ₹500.00 — Maximum ₹10,00,000.00 per SRS §4.2.
+            </div>
+          </div>
+
+          <!-- Trade Mode Toggle (CNC vs MIS) -->
+          <div class="mb-4">
+            <label class="form-label text-xs font-weight-bold text-secondary text-uppercase d-block">
+              Trade Mode (Delivery vs Intraday)
+            </label>
+            <div class="btn-group w-100" role="group" aria-label="Trade Mode Selector">
+              <input type="radio" class="btn-check" name="trade_mode" id="mode-cnc" value="CNC" checked />
+              <label class="btn btn-outline-primary w-50 py-2 font-weight-bold" for="mode-cnc">
+                <i class="bi bi-box-seam me-1"></i> CNC (Cash & Carry)
+              </label>
+
+              <input type="radio" class="btn-check" name="trade_mode" id="mode-mis" value="MIS" />
+              <label class="btn btn-outline-primary w-50 py-2 font-weight-bold" for="mode-mis">
+                <i class="bi bi-lightning-charge me-1"></i> MIS (Intraday)
+              </label>
+            </div>
+          </div>
+
+          <!-- Horizon Selector -->
+          <div class="mb-4">
+            <label for="horizon-select" class="form-label text-xs font-weight-bold text-secondary text-uppercase">
+              Holding Horizon
+            </label>
+            <select class="form-select" id="horizon-select" name="horizon">
+              <option value="1d" selected>1 Day (Overnight)</option>
+              <option value="3d">3 Days (Swing)</option>
+              <option value="1w">1 Week (Positional)</option>
+            </select>
+          </div>
+
+          <!-- Action Button -->
+          <div class="d-grid mt-4">
+            <button type="submit" class="btn btn-gradient-primary btn-lg py-3 shadow-soft-pill font-weight-bold">
+              <i class="bi bi-stars me-2"></i> Show me what I can buy
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Budget Breakdown & Rules Card (Spendly pattern) -->
+  <div class="col-lg-5 mb-4">
+    <div class="card shadow-soft h-100">
+      <div class="card-header pb-0">
+        <h5 class="mb-0 font-weight-bolder">Capital Sizing Breakdown</h5>
+        <p class="text-xs text-muted mb-0">Automatic friction & buffer reserving (SRS §4.2)</p>
+      </div>
+      <div class="card-body">
+        <div class="card bg-light border-0 p-3 mb-3 border-radius-md">
+          <span class="text-xs text-uppercase font-weight-bold text-secondary">Effective Deployable Capital</span>
+          <div class="d-flex align-items-baseline mt-1">
+            <h2 class="font-weight-bolder text-primary mb-0" id="effective-budget-display">₹49,750.00</h2>
+          </div>
+          <span class="text-xxs text-muted mt-1">Net capital submitted to integer portfolio optimizer</span>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light">
+          <span class="text-xs text-secondary">Cash Buffer Reserved (0.5%)</span>
+          <span class="text-xs font-weight-bold text-dark font-monospace" id="buffer-display">₹250.00</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light">
+          <span class="text-xs text-secondary">Maximum Stock Positions</span>
+          <span class="text-xs font-weight-bold text-dark">3 Positions (SRS §4.6)</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light">
+          <span class="text-xs text-secondary">Integer Lot Constraint</span>
+          <span class="text-xs font-weight-bold text-dark">Whole Shares Only</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center py-2">
+          <span class="text-xs text-secondary">Cryptographic Ledger Commitment</span>
+          <span class="status-chip status-chip-anchored"><i class="bi bi-shield-check"></i> SHA-256</span>
+        </div>
+
+        <div class="alert alert-info bg-light border-0 mt-4 mb-0 p-3 border-radius-md">
+          <div class="d-flex align-items-start">
+            <i class="bi bi-info-circle-fill text-primary me-2 mt-1"></i>
+            <span class="text-xs text-secondary">
+              TradeSense executes an exact integer knapsack optimization over active NSE/BSE securities under strictly modeled Indian brokerage and SEBI charges.
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Mandatory Statutory Disclaimers (§15.1 & AT-43) -->
+<div class="row">
+  <div class="col-12">
+    {% with screen='dashboard' %}
+      {% include 'partials/disclaimer.html' %}
+    {% endwith %}
+  </div>
 </div>
 {% endblock %}

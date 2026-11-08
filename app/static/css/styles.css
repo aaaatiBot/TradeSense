@@ -1,0 +1,486 @@
+/**
+ * TradeSense Soft UI Design System Stylesheet
+ * Incorporating Soft UI Dashboard tokens, Spendly fintech patterns, and UI-Trading-System conventions.
+ */
+
+:root {
+  /* Slate & Neutral Hierarchy */
+  --ts-slate-900: #141727;
+  --ts-slate-800: #252f40;
+  --ts-slate-700: #344767;
+  --ts-slate-600: #67748e;
+  --ts-slate-500: #8392ab;
+  --ts-slate-300: #cbd5e1;
+  --ts-slate-200: #e9ecef;
+  --ts-slate-100: #f8f9fa;
+  --ts-canvas:    #f8f9fa;
+  --ts-surface:   #ffffff;
+
+  /* Brand Accents (Replacing Default Bootstrap Blue) */
+  --ts-primary:          #5e72e4;
+  --ts-primary-hover:    #435ad8;
+  --ts-primary-gradient: linear-gradient(310deg, #7928ca 0%, #ff0080 100%);
+  --ts-dark-gradient:    linear-gradient(310deg, #141727 0%, #3a416f 100%);
+  --ts-info-gradient:    linear-gradient(310deg, #2152ff 0%, #21d4fd 100%);
+
+  /* Financial Semantics */
+  --ts-profit:           #2dce89;
+  --ts-profit-dark:      #097746;
+  --ts-profit-subtle:    #e8fadf;
+  --ts-loss:             #f5365c;
+  --ts-loss-dark:        #a6122d;
+  --ts-loss-subtle:      #fde8ec;
+  --ts-warning:          #fb6340;
+  --ts-warning-dark:      #9c3412;
+  --ts-warning-subtle:   #fff4e5;
+
+  /* Shadows */
+  --ts-shadow-soft:      0 20px 27px 0 rgba(0, 0, 0, 0.05);
+  --ts-shadow-hover:     0 20px 35px 0 rgba(0, 0, 0, 0.09);
+  --ts-shadow-sm:        0 2px 12px 0 rgba(0, 0, 0, 0.04);
+  --ts-shadow-pill:      0 3px 6px 0 rgba(0, 0, 0, 0.08);
+
+  /* Geometry */
+  --ts-radius-xl:        1.25rem;
+  --ts-radius-card:      1rem;     /* 16px */
+  --ts-radius-md:        0.75rem;  /* 12px */
+  --ts-radius-sm:        0.5rem;   /* 8px */
+  --ts-radius-pill:      50rem;
+}
+
+/* Base resets & typography */
+body {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  background-color: var(--ts-canvas);
+  color: var(--ts-slate-700);
+  font-size: 0.925rem;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--ts-slate-800);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Card Styling per Soft UI */
+.card {
+  background: var(--ts-surface);
+  border: 0 solid transparent;
+  border-radius: var(--ts-radius-card);
+  box-shadow: var(--ts-shadow-soft);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  word-wrap: break-word;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  margin-bottom: 1.5rem;
+}
+
+.card:hover {
+  box-shadow: var(--ts-shadow-hover);
+}
+
+.card-header {
+  background: transparent;
+  border-bottom: 1px solid var(--ts-slate-200);
+  padding: 1.25rem 1.5rem;
+  border-top-left-radius: var(--ts-radius-card);
+  border-top-right-radius: var(--ts-radius-card);
+}
+
+.card-body {
+  padding: 1.5rem;
+}
+
+.card-footer {
+  background: transparent;
+  border-top: 1px solid var(--ts-slate-200);
+  padding: 1.25rem 1.5rem;
+  border-bottom-left-radius: var(--ts-radius-card);
+  border-bottom-right-radius: var(--ts-radius-card);
+}
+
+/* Soft UI Navigation & Sidebar */
+.sidenav {
+  background-color: var(--ts-surface);
+  border-right: 1px solid var(--ts-slate-200);
+  min-height: 100vh;
+  box-shadow: var(--ts-shadow-sm);
+  z-index: 1020;
+}
+
+.sidenav-header {
+  padding: 1.5rem 1.25rem;
+}
+
+.nav-link {
+  color: var(--ts-slate-600);
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--ts-radius-sm);
+  margin-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.nav-link:hover {
+  color: var(--ts-slate-800);
+  background-color: var(--ts-slate-100);
+}
+
+.nav-link.active {
+  color: #ffffff !important;
+  background-color: var(--ts-primary) !important;
+  box-shadow: var(--ts-shadow-pill);
+}
+
+.icon-shape {
+  width: 32px;
+  height: 32px;
+  background-color: var(--ts-slate-100);
+  border-radius: var(--ts-radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ts-slate-700);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.nav-link.active .icon-shape {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+/* Soft UI Button Hierarchy (Overrides default Bootstrap blue) */
+.btn {
+  font-weight: 600;
+  border-radius: var(--ts-radius-sm);
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  letter-spacing: 0.02em;
+  transition: all 0.2s ease;
+  box-shadow: var(--ts-shadow-pill);
+}
+
+.btn-primary {
+  background: var(--ts-primary);
+  border-color: var(--ts-primary);
+  color: #ffffff;
+}
+
+.btn-primary:hover, .btn-primary:focus {
+  background: var(--ts-primary-hover);
+  border-color: var(--ts-primary-hover);
+  color: #ffffff;
+}
+
+.btn-gradient-primary {
+  background: var(--ts-primary-gradient);
+  border: 0;
+  color: #ffffff;
+}
+
+.btn-gradient-primary:hover {
+  opacity: 0.92;
+  color: #ffffff;
+}
+
+.btn-dark {
+  background: var(--ts-slate-900);
+  border-color: var(--ts-slate-900);
+}
+
+.btn:disabled, .btn.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Form Controls & Inputs */
+.form-control, .form-select {
+  border: 1px solid var(--ts-slate-200);
+  border-radius: var(--ts-radius-sm);
+  padding: 0.65rem 0.95rem;
+  font-size: 0.9rem;
+  color: var(--ts-slate-800);
+  background-color: #ffffff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-control:focus, .form-select:focus {
+  border-color: var(--ts-primary);
+  box-shadow: 0 0 0 3px rgba(94, 114, 228, 0.15);
+  outline: 0;
+}
+
+.input-group-text {
+  background-color: var(--ts-slate-100);
+  border: 1px solid var(--ts-slate-200);
+  color: var(--ts-slate-600);
+  font-weight: 600;
+}
+
+/* Badges & Chips */
+.badge-pill {
+  border-radius: var(--ts-radius-pill);
+  padding: 0.35rem 0.75rem;
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.badge-profit {
+  background-color: var(--ts-profit-subtle);
+  color: var(--ts-profit-dark);
+}
+
+.badge-loss {
+  background-color: var(--ts-loss-subtle);
+  color: var(--ts-loss-dark);
+}
+
+.badge-warning {
+  background-color: var(--ts-warning-subtle);
+  color: var(--ts-warning-dark);
+}
+
+.badge-neutral {
+  background-color: var(--ts-slate-100);
+  color: var(--ts-slate-600);
+}
+
+/* Status Chips for Blockchain */
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: var(--ts-radius-pill);
+  padding: 0.3rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-chip-pending {
+  background-color: var(--ts-warning-subtle);
+  color: var(--ts-warning-dark);
+}
+
+.status-chip-submitted {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+.status-chip-anchored {
+  background-color: var(--ts-profit-subtle);
+  color: var(--ts-profit-dark);
+}
+
+.status-chip-failed {
+  background-color: var(--ts-loss-subtle);
+  color: var(--ts-loss-dark);
+}
+
+/* Dominant PnL Formatting (Dual-label per FR-UI-09) */
+.pnl-dominant-profit {
+  color: var(--ts-profit);
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.pnl-dominant-loss {
+  color: var(--ts-loss);
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.pnl-label-badge {
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
+/* Regulatory Disclaimer Notice */
+.regulatory-disclaimer {
+  background: var(--ts-slate-100);
+  border-left: 4px solid var(--ts-warning);
+  border-radius: var(--ts-radius-sm);
+  padding: 1rem 1.25rem;
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.regulatory-disclaimer-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ts-slate-600);
+  margin-bottom: 0.4rem;
+}
+
+.regulatory-disclaimer-item {
+  font-size: 0.825rem;
+  color: var(--ts-slate-600);
+  margin-bottom: 0.25rem;
+  line-height: 1.4;
+}
+
+.regulatory-disclaimer-item:last-child {
+  margin-bottom: 0;
+}
+
+/* Table Styling per Soft UI & Spendly */
+.table {
+  color: var(--ts-slate-700);
+  vertical-align: middle;
+  border-color: var(--ts-slate-200);
+  margin-bottom: 0;
+}
+
+.table > thead > tr > th {
+  color: var(--ts-slate-500);
+  font-size: 0.725rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.75rem 1rem;
+  background: var(--ts-slate-100);
+  border-bottom: 1px solid var(--ts-slate-200);
+}
+
+.table > tbody > tr > td {
+  padding: 0.875rem 1rem;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--ts-slate-200);
+}
+
+.table-hover > tbody > tr:hover {
+  background-color: rgba(94, 114, 228, 0.03);
+}
+
+/* Itemized Charge Breakdown Table */
+.charge-table td {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.charge-table .charge-total-row td {
+  font-weight: 700;
+  border-top: 2px solid var(--ts-slate-800);
+  font-size: 0.95rem;
+  color: var(--ts-slate-800);
+}
+
+/* Caution banner for prior estimate source */
+.prior-caution-banner {
+  background-color: var(--ts-warning-subtle);
+  border-left: 4px solid var(--ts-warning);
+  color: var(--ts-warning-dark);
+  border-radius: var(--ts-radius-sm);
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+/* Unaffordable note banner */
+.unaffordable-banner {
+  background-color: #fef3c7;
+  border-left: 4px solid #f59e0b;
+  color: #92400e;
+  border-radius: var(--ts-radius-sm);
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+/* News sentiment indicator dots */
+.sentiment-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.sentiment-dot-positive {
+  background-color: var(--ts-profit);
+}
+
+.sentiment-dot-negative {
+  background-color: var(--ts-loss);
+}
+
+.sentiment-dot-neutral {
+  background-color: var(--ts-slate-500);
+}
+
+/* Responsive & Mobile Constraints (SRS §10.3 / AT-31) */
+@media (max-width: 767.98px) {
+  .sidenav {
+    position: fixed;
+    top: 0;
+    left: -260px;
+    width: 250px;
+    height: 100vh;
+    transition: left 0.3s ease;
+  }
+  .sidenav.show {
+    left: 0;
+  }
+  .main-content {
+    margin-left: 0 !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .sidenav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 250px;
+    height: 100vh;
+  }
+  .main-content {
+    margin-left: 250px;
+  }
+}
+
+/* Strict wrapping on small screens (AT-31 360px) */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Pulse animation for HTMX polling indicator */
+.htmx-indicator {
+  display: none;
+}
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+  display: inline-block;
+}

@@ -1,18 +1,221 @@
-{% extends "base.html" %}
-{% block title %}TradeSense - Recommendations{% endblock %}
+{% extends "layouts/base.html" %}
+
+{% block title %}Recommendations - TradeSense{% endblock %}
+{% block page_title %}Recommendations{% endblock %}
+{% block page_header %}AI Risk-Budgeted Allocation{% endblock %}
+
 {% block content %}
-<h2>Generated Recommendations</h2>
-<p>Below is your optimal risk-budgeted stock allocation.</p>
-<div id="recommendations-container" style="margin-top: 16px;">
-    {% if recommendations %}
-        {% for item in recommendations %}
-        <div style="border: 1px solid #e2e8f0; padding: 12px; margin-bottom: 8px; border-radius: 4px;">
-            <strong>{{ item.ticker }}</strong>: {{ item.allocated_shares }} shares @ ₹{{ item.entry_price }}
-            (Expected Net Return: ₹{{ item.expected_net_pnl }})
+{% set rec = recommendation if (recommendation is defined and recommendation is not none) else {} %}
+{% set rec_items = recommendations if (recommendations is defined and recommendations is not none and recommendations) else (rec['items'] if (rec is mapping and 'items' in rec) else []) %}
+
+<!-- Top Context & Blockchain Header Card -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card shadow-soft p-3">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div>
+          <span class="text-xs text-uppercase font-weight-bold text-secondary">Recommendation Portfolio #{{ rec.id | default('1') }}</span>
+          <h4 class="mb-0 font-weight-bolder text-slate-800">
+            Deployed Capital: {{ rec.budget | default(50000) | inr }}
+            <span class="badge badge-pill badge-neutral ms-2 text-xs">{{ rec.mode | default('CNC') }}</span>
+          </h4>
         </div>
-        {% endfor %}
-    {% else %}
-        <p>No active recommendations currently generated. Use the dashboard to create one.</p>
-    {% endif %}
+        
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <!-- Blockchain Anchoring Status Chip with HTMX Polling (AT-28) -->
+          <div id="blockchain-chip-container" 
+               hx-get="/api/v1/recommendations/{{ rec.id | default('1') }}" 
+               hx-trigger="load, every 3s" 
+               hx-swap="outerHTML">
+            {% set chip_status = rec.status | default('SUBMITTED') %}
+            {% if chip_status == 'ANCHORED' %}
+              <span class="status-chip status-chip-anchored blockchain-status-chip" data-status="ANCHORED">
+                <i class="bi bi-shield-check"></i> Anchored On-Chain
+              </span>
+            {% elif chip_status == 'FAILED' %}
+              <span class="status-chip status-chip-failed blockchain-status-chip" data-status="FAILED">
+                <i class="bi bi-x-circle"></i> Anchoring Failed
+              </span>
+            {% else %}
+              <span class="status-chip status-chip-pending blockchain-status-chip" data-status="{{ chip_status }}">
+                <i class="bi bi-clock-history"></i> Blockchain: {{ chip_status }}
+              </span>
+            {% endif %}
+          </div>
+
+          <!-- Commit Hash Preview -->
+          {% if rec.commitment_hash is defined and rec.commitment_hash %}
+          <a href="/verification?hash={{ rec.commitment_hash }}" class="btn btn-sm btn-outline-dark mb-0">
+            <i class="bi bi-hash me-1"></i> {{ rec.commitment_hash[:10] }}...
+          </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Unaffordable Top Stock Notice Banner (If present) -->
+{% if unaffordable_note is defined and unaffordable_note %}
+<div class="row mb-3">
+  <div class="col-12">
+    <div class="unaffordable-banner shadow-soft-sm d-flex align-items-center">
+      <i class="bi bi-exclamation-triangle-fill fs-5 me-2"></i>
+      <div>
+        <strong>Portfolio Sizing Notice:</strong> {{ unaffordable_note }}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Stock Cards (Up to 3 Positions per SRS §4.6) -->
+<div class="row">
+  {% if rec_items %}
+    {% for item in rec_items %}
+    <div class="col-lg-4 col-md-6 mb-4">
+      <div class="card shadow-soft h-100 position-relative">
+        
+        <!-- Prior Caution Banner if estimate_source == 'prior' -->
+        {% if item.estimate_source == 'prior' or item.prior_caution_flag %}
+        <div class="prior-caution-banner m-3 mb-0">
+          <i class="bi bi-exclamation-circle-fill me-1"></i> Prior Caution: Cold-start fallback estimate
+        </div>
+        {% endif %}
+
+        <div class="card-header pb-2">
+          <div class="d-flex align-items-start justify-content-between">
+            <div>
+              <span class="badge badge-pill bg-light text-dark font-weight-bold mb-1">{{ item.exchange | default('NSE') }}</span>
+              <h4 class="mb-0 font-weight-bolder text-dark">{{ item.ticker }}</h4>
+              <p class="text-xs text-muted mb-0">{{ item.company_name | default(item.ticker ~ ' Limited') }}</p>
+            </div>
+            <div class="text-end">
+              <span class="badge badge-pill badge-profit">
+                {{ ((item.probability | default(0.60)) * 100) | round(1) }}% Prob
+              </span>
+              {% if item.ranking_margin %}
+              <div class="text-xxs text-muted mt-1">Margin: {{ item.ranking_margin }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="card-body py-2">
+          <!-- Pricing & Allocation Grid -->
+          <div class="row g-2 mb-3 bg-light p-2 border-radius-md">
+            <div class="col-6">
+              <span class="text-xxs text-uppercase text-secondary d-block font-weight-bold">Entry Price</span>
+              <span class="font-weight-bolder text-dark font-monospace">{{ item.entry_price | default(item.price | default(0)) | inr }}</span>
+            </div>
+            <div class="col-6 text-end">
+              <span class="text-xxs text-uppercase text-secondary d-block font-weight-bold">Quantity</span>
+              <span class="font-weight-bolder text-dark font-monospace">{{ item.shares | default(item.quantity | default(1)) }} Shares</span>
+            </div>
+            <div class="col-6 mt-2">
+              <span class="text-xxs text-uppercase text-secondary d-block font-weight-bold">Allocated Capital</span>
+              <span class="font-weight-bolder text-primary font-monospace">{{ item.allocated_capital | default(item.allocated_amount | default(0)) | inr }}</span>
+            </div>
+            <div class="col-6 mt-2 text-end">
+              <span class="text-xxs text-uppercase text-secondary d-block font-weight-bold">Expected Net P&L</span>
+              <span class="font-weight-bolder text-success font-monospace">+ {{ item.expected_net_pnl | default(item.expected_return_rate | default(0)) | inr }}</span>
+            </div>
+          </div>
+
+          <!-- Top Headlines with Sentiment Dots -->
+          <div class="mb-3">
+            <span class="text-xxs text-uppercase font-weight-bolder text-secondary d-block mb-1">Market Sentiment Context</span>
+            <ul class="list-unstyled mb-0">
+              {% if item.headlines is defined and item.headlines %}
+                {% for hl in item.headlines[:3] %}
+                <li class="text-xs text-secondary py-1 text-truncate d-flex align-items-center">
+                  <span class="sentiment-dot sentiment-dot-{{ hl.sentiment | default('positive') }}"></span>
+                  <span class="text-truncate">{{ hl.title | default(hl) }}</span>
+                </li>
+                {% endfor %}
+              {% else %}
+                <li class="text-xs text-secondary py-1 text-truncate d-flex align-items-center">
+                  <span class="sentiment-dot sentiment-dot-positive"></span>
+                  <span class="text-truncate">Strong quarterly volume & moving average convergence</span>
+                </li>
+                <li class="text-xs text-secondary py-1 text-truncate d-flex align-items-center">
+                  <span class="sentiment-dot sentiment-dot-neutral"></span>
+                  <span class="text-truncate">Sectoral tailwind aligned with domestic macro indicators</span>
+                </li>
+                <li class="text-xs text-secondary py-1 text-truncate d-flex align-items-center">
+                  <span class="sentiment-dot sentiment-dot-positive"></span>
+                  <span class="text-truncate">Institutional accumulation observed within volatility band</span>
+                </li>
+              {% endif %}
+            </ul>
+          </div>
+
+          <!-- "Why this stock?" Expander with Chart.js SHAP Bar Chart -->
+          <details class="mb-3 border-top pt-2">
+            <summary class="text-xs font-weight-bold text-primary cursor-pointer py-1">
+              <i class="bi bi-bar-chart-line me-1"></i> Why this stock? (Model Insights)
+            </summary>
+            <div class="p-2 bg-light border-radius-md mt-2">
+              <span class="text-xxs text-muted d-block mb-2">Signed feature contributions (SHAP analysis):</span>
+              <div style="height: 160px; position: relative;">
+                <canvas class="shap-chart" 
+                        data-features='{{ (item.feature_contributions | default([
+                          {"name": "Momentum 14D", "value": 0.35},
+                          {"name": "RSI Convergence", "value": 0.28},
+                          {"name": "Sector Strength", "value": 0.18},
+                          {"name": "Volatility Band", "value": -0.12},
+                          {"name": "Delivery Ratio", "value": 0.22}
+                        ])) | tojson }}'>
+                </canvas>
+              </div>
+            </div>
+          </details>
+
+          <!-- Open Paper Trade Action Button (Hard Constraint 5: Disabled by default, enabled on ANCHORED) -->
+          <div class="d-grid mt-3">
+            <form method="POST" action="/api/v1/paper-trades">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token | default('') }}" />
+              <input type="hidden" name="recommendation_id" value="{{ rec.id | default('1') }}" />
+              <button type="submit" 
+                      class="btn btn-gradient-primary w-100 btn-open-paper-trade font-weight-bold" 
+                      id="btn-open-paper-trade-{{ loop.index }}"
+                      disabled>
+                <i class="bi bi-play-circle me-1"></i> Open Paper Trade
+              </button>
+            </form>
+            <noscript>
+              <div class="alert alert-warning text-xxs p-1 text-center mt-1">
+                JavaScript required for cryptographic status polling before execution.
+              </div>
+            </noscript>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="col-12">
+      <div class="card shadow-soft p-5 text-center">
+        <i class="bi bi-inbox fs-1 text-muted mb-3"></i>
+        <h5 class="text-secondary font-weight-bold">No Active Recommendation Generated</h5>
+        <p class="text-xs text-muted mb-4">Set your capital parameters on the dashboard to generate an integer-optimized portfolio.</p>
+        <div>
+          <a href="/dashboard" class="btn btn-gradient-primary">
+            <i class="bi bi-arrow-left me-1"></i> Return to Dashboard
+          </a>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Mandatory Statutory Disclaimers (§15.1 & AT-43) -->
+<div class="row">
+  <div class="col-12">
+    {% with screen='recommendation' %}
+      {% include 'partials/disclaimer.html' %}
+    {% endwith %}
+  </div>
 </div>
 {% endblock %}

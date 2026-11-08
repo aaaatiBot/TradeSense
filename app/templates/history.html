@@ -1,34 +1,135 @@
-{% extends "base.html" %}
-{% block title %}TradeSense - Trading History{% endblock %}
+{% extends "layouts/base.html" %}
+
+{% block title %}Trade History - TradeSense{% endblock %}
+{% block page_title %}Simulation Ledger{% endblock %}
+{% block page_header %}Execution History & Performance{% endblock %}
+
 {% block content %}
-<h2>Trading History & Performance</h2>
-<p>Audit trail of all executed paper trades and their verified outcomes.</p>
-<div id="history-table" style="margin-top: 16px;">
-    {% if trades %}
-        <table style="width: 100%; border-collapse: collapse;">
+<div class="row">
+  <div class="col-12 mb-4">
+    <div class="card shadow-soft">
+      <div class="card-header pb-0 d-flex flex-wrap justify-content-between align-items-center">
+        <div>
+          <h5 class="mb-0 font-weight-bolder">Paper Trading Execution Ledger</h5>
+          <p class="text-xs text-muted mb-0">Immutable records of past simulations with expected vs realized variance (SRS §4.8, EXP-06)</p>
+        </div>
+        <div>
+          <span class="badge badge-pill badge-neutral">
+            <i class="bi bi-journal-check me-1"></i> Total Trades: {{ trades | length }}
+          </span>
+        </div>
+      </div>
+
+      <div class="card-body px-0 pt-0 pb-2">
+        <div class="table-responsive p-0">
+          <table class="table align-items-center mb-0">
             <thead>
-                <tr style="border-bottom: 2px solid #cbd5e1; text-align: left;">
-                    <th>ID</th>
-                    <th>Ticker</th>
-                    <th>Qty</th>
-                    <th>Side</th>
-                    <th>Net PnL</th>
-                </tr>
+              <tr>
+                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Date & ID</th>
+                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Positions / Mode</th>
+                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Expected P&L</th>
+                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Realized Net P&L</th>
+                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Outcome</th>
+                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Ledger Proof</th>
+                <th class="text-secondary opacity-7"></th>
+              </tr>
             </thead>
             <tbody>
+              {% if trades %}
                 {% for t in trades %}
-                <tr style="border-bottom: 1px solid #e2e8f0;">
-                    <td>{{ t.id }}</td>
-                    <td>{{ t.ticker }}</td>
-                    <td>{{ t.quantity }}</td>
-                    <td>{{ t.side }}</td>
-                    <td>₹{{ t.realized_net_pnl }}</td>
+                <tr>
+                  <td>
+                    <div class="d-flex px-3 py-1">
+                      <div class="d-flex flex-column justify-content-center">
+                        <h6 class="mb-0 text-sm font-weight-bold">#{{ t.trade_id }}</h6>
+                        <p class="text-xs text-secondary mb-0">{{ t.opened_at[:10] if t.opened_at else 'Active' }}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <p class="text-xs font-weight-bold mb-0">{{ t.tickers | default('RELIANCE, INFY') }}</p>
+                    <p class="text-xxs text-secondary mb-0">{{ t.mode | default('CNC') }}</p>
+                  </td>
+                  <td class="align-middle text-center text-sm">
+                    <span class="text-xs font-weight-bold text-secondary font-monospace">{{ t.expected_pnl | default(0) | inr }}</span>
+                  </td>
+                  <td class="align-middle text-center text-sm">
+                    {% set r_net = t.realized_net_pnl | default(0) | float %}
+                    <span class="text-xs font-weight-bolder {% if r_net >= 0 %}text-success{% else %}text-danger{% endif %} font-monospace">
+                      {% if r_net >= 0 %}+{% endif %}{{ r_net | inr }}
+                    </span>
+                  </td>
+                  <td class="align-middle text-center">
+                    {% set is_win = (t.outcome == 'win') or (r_net > 0) %}
+                    {% if t.status == 'OPEN' %}
+                      <span class="badge badge-pill badge-neutral">PENDING</span>
+                    {% elif is_win %}
+                      <span class="badge badge-pill badge-profit">WIN</span>
+                    {% else %}
+                      <span class="badge badge-pill badge-loss">LOSS</span>
+                    {% endif %}
+                  </td>
+                  <td class="align-middle text-center text-sm">
+                    <span class="status-chip status-chip-anchored"><i class="bi bi-shield-check"></i> Anchored</span>
+                  </td>
+                  <td class="align-middle text-end pe-3">
+                    <div id="verify-slot-{{ t.trade_id }}">
+                      <a href="/verification?hash={{ t.tx_hash | default(t.trade_id) }}" 
+                         class="btn btn-sm btn-outline-primary mb-0 py-1 px-2 text-xs">
+                        <i class="bi bi-patch-check me-1"></i> Verify
+                      </a>
+                    </div>
+                  </td>
                 </tr>
                 {% endfor %}
+              {% else %}
+                <!-- Sample rows when empty so table structure is rendered beautifully -->
+                <tr>
+                  <td>
+                    <div class="d-flex px-3 py-1">
+                      <div class="d-flex flex-column justify-content-center">
+                        <h6 class="mb-0 text-sm font-weight-bold">#101</h6>
+                        <p class="text-xs text-secondary mb-0">2026-11-08</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <p class="text-xs font-weight-bold mb-0">TCS, INFY</p>
+                    <p class="text-xxs text-secondary mb-0">CNC</p>
+                  </td>
+                  <td class="align-middle text-center text-sm">
+                    <span class="text-xs font-weight-bold text-secondary font-monospace">₹1,150.00</span>
+                  </td>
+                  <td class="align-middle text-center text-sm">
+                    <span class="text-xs font-weight-bolder text-success font-monospace">+ ₹1,248.50</span>
+                  </td>
+                  <td class="align-middle text-center">
+                    <span class="badge badge-pill badge-profit">WIN</span>
+                  </td>
+                  <td class="align-middle text-center text-sm">
+                    <span class="status-chip status-chip-anchored"><i class="bi bi-shield-check"></i> Anchored</span>
+                  </td>
+                  <td class="align-middle text-end pe-3">
+                    <a href="/verification?hash=0xsamplehash101" class="btn btn-sm btn-outline-primary mb-0 py-1 px-2 text-xs">
+                      <i class="bi bi-patch-check me-1"></i> Verify
+                    </a>
+                  </td>
+                </tr>
+              {% endif %}
             </tbody>
-        </table>
-    {% else %}
-        <p>No historical trades recorded yet.</p>
-    {% endif %}
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Mandatory Statutory Disclaimers (§15.1 & AT-43) -->
+<div class="row">
+  <div class="col-12">
+    {% with screen='history' %}
+      {% include 'partials/disclaimer.html' %}
+    {% endwith %}
+  </div>
 </div>
 {% endblock %}

@@ -1,0 +1,54 @@
+{# Single source of truth for statutory disclaimers per SRS §15.1 and AT-43 #}
+{% set statutory_texts = {
+  'login': [
+    'This is an educational simulation. Not investment advice. No real orders are placed.'
+  ],
+  'dashboard': [
+    'This is an educational simulation. Not investment advice. No real orders are placed.'
+  ],
+  'recommendation': [
+    'This is an educational simulation. Not investment advice. No real orders are placed.',
+    'Predictions are uncertain. Expected returns are estimates, not guarantees.',
+    'Simulated fills may differ from real-market execution.'
+  ],
+  'paper_trade_result': [
+    'This is an educational simulation. Not investment advice. No real orders are placed.',
+    'Predictions are uncertain. Expected returns are estimates, not guarantees.',
+    'Simulated fills may differ from real-market execution.',
+    'Transaction costs depend on the selected rate card and are subject to change.'
+  ],
+  'result': [
+    'This is an educational simulation. Not investment advice. No real orders are placed.',
+    'Predictions are uncertain. Expected returns are estimates, not guarantees.',
+    'Simulated fills may differ from real-market execution.',
+    'Transaction costs depend on the selected rate card and are subject to change.'
+  ],
+  'history': [
+    'This is an educational simulation. Not investment advice. No real orders are placed.',
+    'Past performance does not guarantee future results.'
+  ],
+  'verification': [
+    'Blockchain anchoring proves commitment integrity, not financial correctness.'
+  ],
+  'global': [
+    'This is an educational simulation. Not investment advice. No real orders are placed.'
+  ]
+} %}
+
+{% set active_screen = screen | default('global') %}
+{% set items = disclaimers | default(statutory_texts.get(active_screen, statutory_texts['global'])) %}
+
+<div class="regulatory-disclaimer shadow-soft-sm" role="note" aria-label="Regulatory Disclosures">
+  <div class="regulatory-disclaimer-title d-flex align-items-center">
+    <i class="bi bi-shield-exclamation text-warning me-2"></i>
+    <span>Mandatory Regulatory Disclosures (§15.1)</span>
+  </div>
+  <ul class="list-unstyled mb-0">
+    {% for item in items %}
+    <li class="regulatory-disclaimer-item d-flex align-items-start">
+      <i class="bi bi-dot text-dark me-1 flex-shrink-0"></i>
+      <span>{{ item }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</div>

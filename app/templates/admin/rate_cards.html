@@ -1,0 +1,88 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Rate Cards - TradeSense Admin{% endblock %}
+{% block page_title %}Tariff Administration{% endblock %}
+{% block page_header %}Brokerage & Statutory Rate Cards{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12 mb-4">
+    <div class="card shadow-soft">
+      <div class="card-header pb-0 d-flex justify-content-between align-items-center">
+        <div>
+          <h5 class="mb-0 font-weight-bolder">Active Statutory Cost Rate Cards (SRS §4.7)</h5>
+          <p class="text-xs text-muted mb-0">Versioned friction models for Zerodha / NSE / BSE equity cash trading</p>
+        </div>
+      </div>
+      <div class="card-body px-0 pt-0 pb-2">
+        <div class="table-responsive p-0">
+          <table class="table align-items-center mb-0">
+            <thead>
+              <tr>
+                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Version Identifier</th>
+                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Effective From</th>
+                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Verified At</th>
+                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Source Reference</th>
+                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if rate_cards %}
+                {% for card in rate_cards %}
+                <tr>
+                  <td class="ps-3">
+                    <h6 class="mb-0 text-sm font-weight-bold">{{ card.version }}</h6>
+                  </td>
+                  <td>
+                    <p class="text-xs text-secondary mb-0">{{ card.effective_from }}</p>
+                  </td>
+                  <td>
+                    <p class="text-xs text-secondary mb-0">{{ card.verified_at or 'Verified' }}</p>
+                  </td>
+                  <td>
+                    <p class="text-xs text-secondary mb-0">{{ card.source_reference }}</p>
+                  </td>
+                  <td class="text-center">
+                    {% if card.is_active %}
+                      <span class="badge badge-pill badge-profit">ACTIVE</span>
+                    {% else %}
+                      <span class="badge badge-pill badge-neutral">SUPERSEDED</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              {% else %}
+                <tr>
+                  <td class="ps-3">
+                    <h6 class="mb-0 text-sm font-weight-bold">zerodha-2026-v1</h6>
+                  </td>
+                  <td>
+                    <p class="text-xs text-secondary mb-0">2026-01-01</p>
+                  </td>
+                  <td>
+                    <p class="text-xs text-secondary mb-0">2026-01-02 10:00:00 UTC</p>
+                  </td>
+                  <td>
+                    <p class="text-xs text-secondary mb-0">SEBI Master Circular 2025/11; Zerodha Tariff Sheet</p>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge badge-pill badge-profit">ACTIVE</span>
+                  </td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-12">
+    {% with screen='global' %}
+      {% include 'partials/disclaimer.html' %}
+    {% endwith %}
+  </div>
+</div>
+{% endblock %}

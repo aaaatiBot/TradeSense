@@ -1,0 +1,122 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Model Versions - TradeSense Admin{% endblock %}
+{% block page_title %}Model Governance{% endblock %}
+{% block page_header %}ML Model Versions & Promotion Engine{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12 mb-4">
+    <div class="card shadow-soft">
+      <div class="card-header pb-0 d-flex justify-content-between align-items-center">
+        <div>
+          <h5 class="mb-0 font-weight-bolder">Model Artifact Registry (SRS §9.8)</h5>
+          <p class="text-xs text-muted mb-0">Artifact versioning, feature schemas, and promotion gates</p>
+        </div>
+      </div>
+      <div class="card-body px-0 pt-0 pb-2">
+        <div class="table-responsive p-0">
+          <table class="table align-items-center mb-0">
+            <thead>
+              <tr>
+                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Version Tag</th>
+                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Feature Schema</th>
+                <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7 ps-2">Reference Notional</th>
+                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Active State</th>
+                <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Governance Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if models %}
+                {% for m in models %}
+                <tr>
+                  <td class="ps-3">
+                    <h6 class="mb-0 text-sm font-weight-bold">{{ m.version_tag }}</h6>
+                  </td>
+                  <td>
+                    <span class="badge badge-pill badge-neutral">{{ m.feature_schema_version }}</span>
+                  </td>
+                  <td>
+                    <span class="text-xs font-monospace font-weight-bold">{{ m.reference_notional | inr }}</span>
+                  </td>
+                  <td class="text-center">
+                    {% if m.is_active %}
+                      <span class="badge badge-pill badge-profit">ACTIVE</span>
+                    {% else %}
+                      <span class="badge badge-pill badge-neutral">STANDBY</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-center">
+                    {% if not m.is_active %}
+                      <button type="button" class="btn btn-sm btn-outline-primary mb-0 py-1" data-bs-toggle="modal" data-bs-target="#promoteModal-{{ m.id }}">
+                        Promote to Production
+                      </button>
+                    {% else %}
+                      <button type="button" class="btn btn-sm btn-outline-warning mb-0 py-1" data-bs-toggle="modal" data-bs-target="#rollbackModal-{{ m.id }}">
+                        Rollback
+                      </button>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              {% else %}
+                <tr>
+                  <td class="ps-3">
+                    <h6 class="mb-0 text-sm font-weight-bold">tradesense-ensemble-v1.2.0</h6>
+                  </td>
+                  <td>
+                    <span class="badge badge-pill badge-neutral">v2.1</span>
+                  </td>
+                  <td>
+                    <span class="text-xs font-monospace font-weight-bold">₹500.00</span>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge badge-pill badge-profit">ACTIVE</span>
+                  </td>
+                  <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-outline-warning mb-0 py-1" data-bs-toggle="modal" data-bs-target="#rollbackModal-1">
+                      Rollback
+                    </button>
+                  </td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Promotion Confirmation Modal (SRS §9.8 Promotion Rules) -->
+<div class="modal fade" id="rollbackModal-1" tabindex="-1" aria-labelledby="rollbackModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-soft">
+      <div class="modal-header">
+        <h5 class="modal-title font-weight-bold" id="rollbackModalLabel">Confirm Model Rollback</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-xs text-secondary">
+        <p class="mb-2">
+          <strong>Warning:</strong> Rolling back model version will immediately alter expected return calculations for newly generated recommendations.
+        </p>
+        <p class="mb-0">
+          Per SRS §9.8, promotions and rollbacks are audited on-chain and registered in the immutable administrative event log.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm btn-warning">Confirm Rollback</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-12">
+    {% with screen='global' %}
+      {% include 'partials/disclaimer.html' %}
+    {% endwith %}
+  </div>
+</div>
+{% endblock %}

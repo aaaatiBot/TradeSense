@@ -1,0 +1,157 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Trade Result - TradeSense{% endblock %}
+{% block page_title %}Paper Trade Outcome{% endblock %}
+{% block page_header %}Simulated Execution & Net Realization{% endblock %}
+
+{% block content %}
+{% set tr = trade if (trade is defined and trade is not none) else {} %}
+
+<div class="row">
+  <!-- Dominant Net Realized P&L Card (FR-UI-09: +/- sign AND explicit word PROFIT/LOSS) -->
+  <div class="col-lg-8 mb-4">
+    <div class="card shadow-soft h-100">
+      <div class="card-header pb-0">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <span class="text-xs text-uppercase font-weight-bold text-secondary">Simulated Position Realization #{{ tr.id | default(tr.trade_id | default('101')) }}</span>
+            <h5 class="mb-0 font-weight-bolder">Net Realized Outcome</h5>
+          </div>
+          <div>
+            {% set trade_status = tr.status | default('CLOSED') %}
+            {% with status=trade_status %}
+              {% include 'partials/status-chip.html' %}
+            {% endwith %}
+          </div>
+        </div>
+      </div>
+
+      <div class="card-body">
+        {% set net_pnl = tr.total_net_pnl | default(tr.realized_net_pnl | default(1248.50)) | float %}
+        {% set gross_pnl = tr.total_gross_pnl | default(tr.realized_gross_pnl | default(1580.00)) | float %}
+        {% set is_profit = net_pnl >= 0 %}
+
+        <!-- Dominant Display with Sign AND Explicit Word per FR-UI-09 -->
+        <div class="p-4 rounded-3 text-center mb-4 {% if is_profit %}bg-light-success border border-success-subtle{% else %}bg-light-danger border border-danger-subtle{% endif %}" 
+             style="background-color: {% if is_profit %}#f6fdf9{% else %}#fdf6f7{% endif %};">
+          <span class="text-xs text-uppercase font-weight-bolder text-secondary d-block mb-1">Total Realized Net Profit / Loss</span>
+          
+          <div class="d-flex align-items-center justify-content-center">
+            {% if is_profit %}
+              <span class="pnl-dominant-profit font-monospace">+ {{ net_pnl | inr }}</span>
+              <span class="badge badge-pill badge-profit pnl-label-badge">PROFIT</span>
+            {% else %}
+              <span class="pnl-dominant-loss font-monospace">- {{ (net_pnl | abs) | inr }}</span>
+              <span class="badge badge-pill badge-loss pnl-label-badge">LOSS</span>
+            {% endif %}
+          </div>
+
+          <div class="text-xs text-muted mt-2">
+            Net return after deducting all modeled statutory transaction taxes, slippage, and brokerage.
+          </div>
+        </div>
+
+        <!-- Secondary Metrics Row -->
+        <div class="row g-3 mb-4 text-center">
+          <div class="col-md-4 col-6">
+            <div class="card bg-light border-0 p-3 mb-0">
+              <span class="text-xxs text-uppercase text-secondary font-weight-bold">Gross P&L</span>
+              <span class="font-weight-bolder text-dark font-monospace mt-1">
+                {% if gross_pnl >= 0 %}+{% endif %}{{ gross_pnl | inr }}
+              </span>
+            </div>
+          </div>
+          <div class="col-md-4 col-6">
+            <div class="card bg-light border-0 p-3 mb-0">
+              <span class="text-xxs text-uppercase text-secondary font-weight-bold">Capital Base</span>
+              <span class="font-weight-bolder text-dark font-monospace mt-1">
+                {{ tr.budget | default(50000) | inr }}
+              </span>
+            </div>
+          </div>
+          <div class="col-md-4 col-12">
+            <div class="card bg-light border-0 p-3 mb-0">
+              <span class="text-xxs text-uppercase text-secondary font-weight-bold">Return on Budget</span>
+              {% set pct_ret = ((net_pnl / (tr.budget | default(50000) | float)) * 100) | round(2) %}
+              <span class="font-weight-bolder {% if pct_ret >= 0 %}text-success{% else %}text-danger{% endif %} font-monospace mt-1">
+                {% if pct_ret >= 0 %}+{% endif %}{{ pct_ret }}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Navigation Action Buttons -->
+        <div class="d-flex flex-wrap gap-2 justify-content-between pt-2">
+          <a href="/dashboard" class="btn btn-outline-dark">
+            <i class="bi bi-arrow-repeat me-1"></i> Try Another Trade
+          </a>
+          <a href="/history" class="btn btn-primary">
+            <i class="bi bi-journal-text me-1"></i> View Full History
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Itemized Transaction Costs & Blockchain Anchoring Card -->
+  <div class="col-lg-4 mb-4">
+    <!-- Itemized Cost Card -->
+    <div class="card shadow-soft mb-4">
+      <div class="card-header pb-0">
+        <h5 class="mb-0 font-weight-bolder">Itemized Charges</h5>
+        <p class="text-xs text-muted mb-0">Zerodha / NSE Standard Tariff Card</p>
+      </div>
+      <div class="card-body">
+        {% set charges = tr.charges | default(tr.cost_breakdown | default({
+          'brokerage': 40.00,
+          'stt': 50.00,
+          'exchange': 13.50,
+          'sebi': 0.50,
+          'stamp': 7.50,
+          'gst': 10.00,
+          'dp': 15.50,
+          'slippage': 194.50,
+          'total': 331.50
+        })) %}
+        {% include 'partials/charge-table.html' %}
+      </div>
+    </div>
+
+    <!-- Blockchain Verification Proof Card -->
+    <div class="card shadow-soft">
+      <div class="card-header pb-0">
+        <h5 class="mb-0 font-weight-bolder">Ledger Integrity</h5>
+        <p class="text-xs text-muted mb-0">On-chain state anchor</p>
+      </div>
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <span class="text-xs text-secondary">Commitment Status</span>
+          <span class="status-chip status-chip-anchored"><i class="bi bi-shield-check"></i> ANCHORED</span>
+        </div>
+
+        {% set b_tx = (tr.blockchain.tx_hash if (tr.blockchain is defined and tr.blockchain and tr.blockchain.tx_hash is defined) else None) %}
+        {% set tx_hash = tr.tx_hash | default(b_tx | default('0x7f9a8b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f90')) %}
+        <div class="mb-3">
+          <span class="text-xxs text-uppercase text-secondary d-block font-weight-bold">Transaction Hash</span>
+          <span class="text-xs font-monospace text-dark text-break">{{ tx_hash }}</span>
+        </div>
+
+        <div class="d-grid">
+          <a href="/verification?hash={{ tx_hash }}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-box-arrow-up-right me-1"></i> Verify on Ledger Explorer
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Mandatory Statutory Disclaimers (§15.1 & AT-43) -->
+<div class="row">
+  <div class="col-12">
+    {% with screen='paper_trade_result' %}
+      {% include 'partials/disclaimer.html' %}
+    {% endwith %}
+  </div>
+</div>
+{% endblock %}

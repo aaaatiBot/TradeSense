@@ -37,6 +37,10 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     db.init_app(app)
     limiter.init_app(app)
 
+    # Register custom template filters
+    from app.utils.filters import register_filters
+    register_filters(app)
+
     # Request Lifecycle Hooks
     @app.before_request
     def before_request_hook():
