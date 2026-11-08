@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}TradeSense - Dashboard{% endblock %}
+{% block content %}
+<h2>Trading Dashboard</h2>
+<p>Welcome to TradeSense educational simulated trading portal.</p>
+<div style="background: #f1f5f9; padding: 16px; border-radius: 6px; margin-top: 16px;">
+    <h3>Start a Simulation</h3>
+    <form method="POST" action="/api/v1/recommendations">
+        <label for="budget">Investment Budget (₹):</label>
+        <input type="number" id="budget" name="budget" value="10000" min="500" max="1000000" step="100">
+        <select name="trade_mode">
+            <option value="CNC">CNC (Delivery)</option>
+            <option value="MIS">MIS (Intraday)</option>
+        </select>
+        <button type="submit">Generate Recommendations</button>
+    </form>
+</div>
+{% endblock %}

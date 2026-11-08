@@ -54,11 +54,46 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         if request_id:
             response.headers["X-Request-ID"] = request_id
 
+        # Security Headers per SRS §5.2 and AT-31
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization,X-Request-ID,Idempotency-Key"
+        response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS"
+
         # Calculate duration
         start_time = getattr(g, "start_time", None)
         duration_ms = None
         if start_time is not None:
             duration_ms = round((time.perf_counter() - start_time) * 1000.0, 2)
+
+        # Record metrics per SRS §5.7.1 and AT-44
+        try:
+            from app.utils.metrics import metrics
+            dur_sec = (duration_ms / 1000.0) if duration_ms is not None else 0.0
+            metrics.record_http_request(
+                endpoint=request.path,
+                method=request.method,
+                status=response.status_code,
+                duration_seconds=dur_sec,
+            )
+        except Exception:
+            pass
+
+        # Check API Deprecation Headers per SRS §6.6 and AT-45
+        try:
+            from app.models.api_deprecation import ApiDeprecation
+            dep = ApiDeprecation.query.filter(
+                ApiDeprecation.endpoint == request.path,
+                ApiDeprecation.is_active == True,
+            ).first()
+            if dep:
+                response.headers["Deprecation"] = dep.deprecation_date.strftime("%a, %d %b %Y %H:%M:%S GMT")
+                response.headers["Sunset"] = dep.sunset_date.strftime("%a, %d %b %Y %H:%M:%S GMT")
+        except Exception:
+            pass
 
         # Log request completion with duration (LOG-M1)
         if request.path != "/api/v1/health":  # keep health endpoint logs less noisy unless debug

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}TradeSense - Blockchain Audit Verification{% endblock %}
+{% block content %}
+<h2>Independent Cryptographic Audit Verification</h2>
+<p>Verify that TradeSense recorded recommendations and trade results to the Ethereum blockchain before market outcomes occurred.</p>
+<div style="background: #f1f5f9; padding: 16px; border-radius: 6px; margin-top: 16px;">
+    <form method="GET" action="/verification">
+        <label for="hash">Commitment Keccak-256 Hash:</label><br>
+        <input type="text" id="hash" name="hash" style="width: 100%; font-family: monospace;" placeholder="0x..." value="{{ query_hash or '' }}">
+        <button type="submit" style="margin-top: 10px;">Verify on Smart Contract</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}TradeSense - Paper Trade Result{% endblock %}
+{% block content %}
+<h2>Simulated Trade Execution Result</h2>
+<div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 16px; border-radius: 6px;">
+    <h3>Trade Summary</h3>
+    <p>Status: <span id="trade-status">{{ trade.status if trade else 'COMPLETED' }}</span></p>
+    <p>Gross PnL: ₹{{ trade.gross_pnl if trade else '0.00' }}</p>
+    <p>Total Estimated Transaction Charges: ₹{{ trade.total_charges if trade else '0.00' }}</p>
+    <p><strong>Realized Net PnL: ₹{{ trade.net_pnl if trade else '0.00' }}</strong></p>
+</div>
+{% endblock %}

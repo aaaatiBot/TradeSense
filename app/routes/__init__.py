@@ -9,6 +9,7 @@ from app.routes.paper_trades import paper_trades_bp
 from app.routes.history import history_bp
 from app.routes.verification import verification_bp
 from app.routes.admin import admin_bp
+from app.routes.ui import ui_bp
 
 
 def register_routes(app: Flask) -> None:
@@ -21,3 +22,5 @@ def register_routes(app: Flask) -> None:
     app.register_blueprint(history_bp)
     app.register_blueprint(verification_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(ui_bp)
+

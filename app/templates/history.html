@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}TradeSense - Trading History{% endblock %}
+{% block content %}
+<h2>Trading History & Performance</h2>
+<p>Audit trail of all executed paper trades and their verified outcomes.</p>
+<div id="history-table" style="margin-top: 16px;">
+    {% if trades %}
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="border-bottom: 2px solid #cbd5e1; text-align: left;">
+                    <th>ID</th>
+                    <th>Ticker</th>
+                    <th>Qty</th>
+                    <th>Side</th>
+                    <th>Net PnL</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in trades %}
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td>{{ t.id }}</td>
+                    <td>{{ t.ticker }}</td>
+                    <td>{{ t.quantity }}</td>
+                    <td>{{ t.side }}</td>
+                    <td>₹{{ t.realized_net_pnl }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No historical trades recorded yet.</p>
+    {% endif %}
+</div>
+{% endblock %}
