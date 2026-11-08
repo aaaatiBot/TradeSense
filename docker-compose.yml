@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: tradesense-app
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=b29a8f4c2e1b7d5a3e8f6c4b2a0d9e7f5a3c1b8d6e4f2a0c8b6d4e2f0a8c6b4d
+      - DATABASE_URL=sqlite:///tradesense.db
+      - MARKET_DATA_PROVIDER=mock
+    volumes:
+      - tradesense-data:/app/instance
+    restart: unless-stopped
+
+volumes:
+  tradesense-data:
