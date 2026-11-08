@@ -8,6 +8,7 @@ import datetime
 from sqlalchemy import DateTime
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.extensions import Base
 from app.utils.clock import Clock
 
 
