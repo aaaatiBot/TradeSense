@@ -280,9 +280,42 @@ class LiveTickService:
                 except Exception as exc:
                     self.on_disconnect(exc)
             else:
-                # Simulated / Standby loop for dev and testing
+                # High-Frequency Live Market Streaming Simulation engine (no broker account required)
+                import random
+                current_prices = {
+                    "INFY": Decimal("1520.50"),
+                    "TCS": Decimal("3825.00"),
+                    "RELIANCE": Decimal("2450.75"),
+                    "HDFCBANK": Decimal("1652.20"),
+                    "ICICIBANK": Decimal("1105.80"),
+                    "WIPRO": Decimal("482.30"),
+                }
+                for s in self.subscribed_symbols:
+                    if s not in current_prices:
+                        current_prices[s] = Decimal("500.00")
+
                 while not self._stop_event.is_set():
-                    time.sleep(0.5)
+                    try:
+                        sym = random.choice(list(current_prices.keys()))
+                        curr = current_prices[sym]
+                        delta_pct = Decimal(str(round(random.uniform(-0.002, 0.002), 4)))
+                        new_price = round(curr * (Decimal("1") + delta_pct), 2)
+                        if new_price > Decimal("0"):
+                            current_prices[sym] = new_price
+
+                        vol = random.randint(5, 120)
+                        self.on_tick({
+                            "ticker": sym,
+                            "price": new_price,
+                            "volume": vol,
+                            "timestamp": Clock.utcnow(),
+                            "source": "market_simulator",
+                        })
+                    except Exception as e:
+                        logger.debug(f"Tick simulation warning: {e}")
+
+                    if self._stop_event.wait(timeout=1.0):
+                        break
 
         self._worker_thread = threading.Thread(target=_socket_loop, daemon=True, name="LiveTickWorker")
         self._worker_thread.start()

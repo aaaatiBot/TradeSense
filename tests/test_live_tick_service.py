@@ -203,3 +203,24 @@ def test_job_worker_schedule_periodic_tasks(app):
         assert tasks2 == {}
 
 
+def test_dashboard_quotes_api(client, app):
+    """Verifies GET /api/v1/dashboard/quotes returns live and cached quotes."""
+    set_cached_tick("INFY", {
+        "ticker": "INFY",
+        "price": Decimal("1530.00"),
+        "volume": 50,
+        "ts_utc": Clock.utcnow(),
+        "source": "market_simulator",
+    })
+
+    res = client.get("/api/v1/dashboard/quotes")
+    assert res.status_code == 200
+    data = res.get_json()["data"]
+    assert "quotes" in data
+    infy_q = next((q for q in data["quotes"] if q["ticker"] == "INFY"), None)
+    assert infy_q is not None
+    assert infy_q["price"] == "1530.00"
+    assert infy_q["is_live"] is True
+
+
+
