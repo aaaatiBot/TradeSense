@@ -1,13 +1,14 @@
 # TradeSense: Educational Stock-Advisory & Cryptographic Paper Trading Platform
 
-[![CI Test Suite](https://img.shields.io/badge/tests-91%20passed-brightgreen.svg)]()
+[![CI Test Suite](https://img.shields.io/badge/tests-100%20passed-brightgreen.svg)]()
 [![Code Coverage](https://img.shields.io/badge/coverage-91%25%20total%20%7C%20%E2%89%A595%25%20critical-blue.svg)]()
 [![Specification](https://img.shields.io/badge/SRS-v3.1%20Authoritative-purple.svg)]()
 [![Python](https://img.shields.io/badge/python-3.11-blue.svg)]()
 [![Framework](https://img.shields.io/badge/flask-3.x-lightgrey.svg)]()
+[![Frontend](https://img.shields.io/badge/UI-Soft%20UI%20Dashboard%20%7C%20Jinja2-pink.svg)]()
 [![Blockchain](https://img.shields.io/badge/solidity-0.8.20-orange.svg)]()
 
-TradeSense is a full-featured educational stock-advisory and simulated paper-trading platform engineered for retail investors in the Indian equity markets (NSE/BSE). Built strictly to the **TradeSense Software Requirements Specification (SRS) v3.1**, the platform couples versioned machine learning forecasts and integer-constrained portfolio optimization with an immutable Ethereum blockchain audit layer to guarantee non-repudiation of recommendations and paper-trade outcomes.
+TradeSense is a production-grade educational stock-advisory and simulated paper-trading platform engineered for retail investors in the Indian equity markets (NSE/BSE). Built strictly to the **TradeSense Software Requirements Specification (SRS) v3.1**, the platform couples versioned machine learning forecasts and integer-constrained portfolio optimization with an immutable Ethereum/Polygon blockchain audit layer to guarantee non-repudiation of recommendations and paper-trade outcomes.
 
 ---
 
@@ -20,7 +21,7 @@ TradeSense is a full-featured educational stock-advisory and simulated paper-tra
 2. **Expectation-Driven Portfolio Optimization**:
    - Strictly enforces that probability alone is never multiplied by stock price ($p_i \cdot P_i \ne \text{expected profit}$).
    - Integrates class-conditional return magnitudes $E[G_i(1)] = p_i \cdot G_i^+ + (1 - p_i) \cdot G_i^-$ with empirical fallback hierarchy (Ticker Baseline $\to$ Universe Baseline $\to$ Empirical Prior).
-   - Mixed-Integer Linear Programming (MILP) solver (`scipy.optimize.milp`) allocates discrete integer share quantities strictly within user budgets, cash buffers, and single-position constraints.
+   - Mixed-Integer Linear Programming (MILP) solver (`scipy.optimize.milp`) allocates discrete integer share quantities strictly within user budgets, cash buffers (0.5%), and single-position constraints.
 
 3. **Immutable Smart Contract Audit Trail**:
    - Uses Ethereum smart contract (`TradeSenseAudit.sol`) to anchor pre-commitment recommendation hashes before market outcomes are known, and trade-result commitments upon closing.
@@ -28,9 +29,14 @@ TradeSense is a full-featured educational stock-advisory and simulated paper-tra
    - Durable, lease-locked database job worker (`job_queue`) with exponential retry backoff and crash recovery.
 
 4. **SEBI Compliance & Regulatory Transparency**:
-   - Statutory disclaimers embedded and verified across all user-facing screens and API responses.
+   - Statutory disclaimers embedded and verified across all user-facing screens and API responses (`partials/disclaimer.html` as single source of truth).
    - Non-authoritative, educational Gemini AI explanations for news sentiment and rationale without altering financial decisions.
    - Full automated retention policy sweep and right-to-erasure (GDPR / Indian DPDP Act) anonymization.
+
+5. **Soft UI Fintech Design System**:
+   - Modern Jinja2 + HTML5 + CSS3 + vanilla JavaScript frontend adopting the **Soft UI Dashboard** design language (soft shadows, generous border-radius, pill badges, slate-grey typography).
+   - Incorporates fintech ledger patterns from **spendly** and Indian equity trading conventions from **ui-trading-system** (₹ currency notation, dual-label PnL displays).
+   - Interactive SHAP feature contribution charts via Chart.js and asynchronous status polling via HTMX.
 
 ---
 
@@ -52,54 +58,58 @@ TradeSense/
 │   │   ├── recommendation.py, recommendation_item.py
 │   │   ├── paper_trade.py, paper_trade_leg.py
 │   │   ├── blockchain_record.py, job.py, idempotency.py
-│   │   ├── api_deprecation.py, disclaimer.py
-│   ├── routes/                    # RESTful API blueprints per SRS §6
+│   │   └── api_deprecation.py, disclaimer.py
+│   ├── routes/                    # RESTful API & UI blueprints per SRS §6 & §10
 │   │   ├── auth.py                # Argon2id registration, login, logout, account erasure
 │   │   ├── health.py              # Honest per-dependency status check (SRS §5.7.4)
 │   │   ├── recommendations.py     # E[G_i] estimation & integer MILP optimizer
 │   │   ├── paper_trades.py        # Simulated trade opening, closing, and PnL realization
 │   │   ├── history.py             # User isolated trade performance audit trail
-│   │   ├── verification.py        # Independent cryptographic proof verification
-│   │   ├── admin.py               # Observability metrics, queue depth, audit dashboard
-│   │   └── ui.py                  # Jinja2 views with statutory disclaimers
-│   ├── services/                  # Core domain logic
-│   │   ├── auth_service.py        # Authentication & RBAC
-│   │   ├── blockchain_service.py  # Canonical serialization & Keccak-256 anchoring (≥95% cov)
-│   │   ├── conditional_return_service.py # G^+/G^- estimation & fallback hierarchy
-│   │   ├── cost_engine.py         # Exact Indian equity transaction charges (≥95% cov)
-│   │   ├── disclaimer_service.py  # Statutory disclaimer registry & validation
-│   │   ├── expected_return_service.py # E[G_i] computation (≥95% cov)
-│   │   ├── feature_service.py     # Leak-free technical indicator feature generation
-│   │   ├── gemini_service.py      # Resilient LLM sentiment & educational rationale
-│   │   ├── market_data_service.py # Bar ingestion, OHLCV validation, stale detection
-│   │   ├── optimizer_service.py   # Integer portfolio allocation via MILP
-│   │   ├── paper_trade_service.py # Simulated trade lifecycle with Idempotency-Key
-│   │   ├── prediction_service.py  # Walk-forward model inference & promotion gates
-│   │   ├── retention_service.py   # Scheduled rolling retention sweep & erasure
-│   │   ├── universe_service.py    # Stock eligibility & status safeguards
-│   │   └── verification_service.py# Cryptographic on-chain proof verification
-│   ├── templates/                 # Jinja2 templates (Login, Dashboard, Rec, Trade, History, Ver)
-│   ├── utils/                     # Clock abstraction, structured JSON logging, metrics
-│   └── workers/                   # Background durable blockchain queue worker
-├── contracts/                     # Solidity smart contract (TradeSenseAudit.sol)
-├── migrations/                    # Alembic schema migrations
-├── tests/                         # Comprehensive pytest test suite (AT-01 through AT-45)
-│   ├── test_auth.py
-│   ├── test_blockchain.py
-│   ├── test_clock_and_logger.py
-│   ├── test_cost_engine.py
-│   ├── test_durable_worker.py
-│   ├── test_end_to_end_journey.py
-│   ├── test_factory_and_config.py
-│   ├── test_gemini_service.py
-│   ├── test_health.py
-│   ├── test_market_data_and_universe.py
-│   ├── test_migrations.py
-│   ├── test_ml_and_conditional_return.py
-│   ├── test_models.py
-│   ├── test_optimizer.py
-│   ├── test_paper_trading.py
-│   └── test_phase11_ui_security_retention.py
+│   │   ├── verification.py        # Independent cryptographic commitment verification
+│   │   ├── admin.py               # Administrative telemetry & overview endpoints
+│   │   └── ui.py                  # Server-rendered Jinja2 user interface views
+│   ├── services/                  # 13 Domain services implementing business logic
+│   │   ├── auth_service.py        # Argon2id, session tokens, account deletion
+│   │   ├── blockchain_service.py  # RFC 8785 canonical hash & web3 commitment
+│   │   ├── cost_engine.py         # Deterministic statutory charge calculations (Decimal)
+│   │   ├── expected_return_service.py # E[G_i] class-conditional estimation
+│   │   ├── optimizer_service.py   # Scipy integer MILP allocation solver
+│   │   ├── paper_trade_service.py # Simulated trade lifecycle & execution
+│   │   ├── gemini_service.py      # Non-authoritative news sentiment & explanations
+│   │   ├── market_data_service.py # Bar ingestion & stale data detection
+│   │   ├── feature_service.py     # Leak-free technical indicator extraction
+│   │   ├── prediction_service.py  # Model lifecycle, promotion & walk-forward evaluation
+│   │   ├── universe_service.py    # Active trading universe management
+│   │   ├── retention_service.py   # Scheduled data retention & purge sweeps
+│   │   └── verification_service.py# Cryptographic commitment consensus auditing
+│   ├── templates/                 # Jinja2 templates (Soft UI Design System)
+│   │   ├── layouts/               # base.html, base-auth.html
+│   │   ├── includes/              # sidebar.html, navigation.html, footer.html, scripts.html
+│   │   ├── partials/              # disclaimer.html, status-chip.html, charge-table.html, flash.html
+│   │   ├── auth/                  # login.html, register.html
+│   │   ├── admin/                 # panel.html, rate_cards.html, model_versions.html
+│   │   ├── errors/                # 404.html, 500.html
+│   │   ├── dashboard.html, recommendation.html, result.html, history.html, verification.html
+│   ├── static/                    # Frontend static assets
+│   │   ├── css/styles.css         # Soft UI design system stylesheet
+│   │   ├── js/app.js              # Vanilla JS budget calculator, Chart.js SHAP init, HTMX polling
+│   │   └── images/logo.svg        # Brandmark SVG
+│   ├── utils/                     # Cross-cutting utilities
+│   │   ├── clock.py               # Clock abstraction for deterministic time testing (TST-01)
+│   │   ├── decorators.py          # Session auth & role verification
+│   │   ├── filters.py             # Jinja2 Indian numbering filter `inr` (₹1,23,456.78)
+│   │   ├── logger.py              # Structured JSON logging with PII redaction (LOG-M1)
+│   │   ├── metrics.py             # Application monitoring & telemetry counters
+│   │   └── response.py            # Standard envelope response builders (SRS §6.1)
+│   └── workers/
+│       └── blockchain_worker.py   # Resilient background polling worker for smart contract anchoring
+├── contracts/
+│   └── TradeSenseAudit.sol        # Solidity smart contract for immutable cryptographic anchoring
+├── docs/                          # Technical governance & deployment documentation
+│   ├── DEPLOYMENT.md              # Production deployment & operations runbook
+│   └── ML_EVALUATION_REPORT.md    # Model provenance, reference notional sensitivity & baselines
+├── migrations/                    # Versioned Alembic database migrations
+├── tests/                         # Comprehensive pytest test suite (100 test cases)
 └── pytest.ini
 ```
 
@@ -119,7 +129,7 @@ TradeSense/
 | **Phase 8** | Smart Contract & Hashing | Canonical Serialization, Keccak-256, NFC Normalization | AT-22, AT-23, AT-24, AT-25, AT-42 (99% cov) | **PASSED** |
 | **Phase 9** | Durable Blockchain Worker | Lease Locking, Exponential Retry Backoff, Crash Recovery | AT-26, AT-27, AT-28, AT-29, AT-30 | **PASSED** |
 | **Phase 10** | Gemini Integration | Educational Explanations, News Sentiment, Graceful Degradation | AT-18 (99% cov) | **PASSED** |
-| **Phase 11** | UI, Security & Retention | Security Headers, Rate Limits, XSS, Purge Sweeps, Disclaimers, RFC 8594 | AT-31, AT-32, AT-33, AT-40, AT-43, AT-44, AT-45 | **PASSED** |
+| **Phase 11** | UI, Security & Retention | Soft UI Frontend, CSRF, XSS, Purge Sweeps, Disclaimers, RFC 8594 | AT-31, AT-32, AT-33, AT-40, AT-43, AT-44, AT-45 | **PASSED** |
 | **Phase 12** | End-to-End User Journey | Full user lifecycle: Register -> Recommend -> Anchor -> Trade -> Close -> Verify | AT-35 (Full Suite Integration) | **PASSED** |
 
 ---
@@ -132,7 +142,7 @@ Run the complete test suite with line coverage reporting:
 # Activate Python virtual environment
 .venv\Scripts\activate
 
-# Run all 91 test cases across the entire test suite
+# Run all 100 test cases across the entire test suite
 pytest -v --cov=app/services --cov-report=term-missing
 ```
 
@@ -147,8 +157,36 @@ pytest -v --cov=app/services --cov-report=term-missing
 | `app/services/market_data_service.py` | N/A | **96%** | **SATISFIED** |
 | `app/services/auth_service.py` | N/A | **98%** | **SATISFIED** |
 | `app/services/disclaimer_service.py` | N/A | **100%** | **SATISFIED** |
-| `app/services/verification_service.py` | N/A | **100%** | **SATISFIED** |
+| `app/services/verification_service.py` | N/A | **91%** | **SATISFIED** |
+| `app/services/universe_service.py` | N/A | **93%** | **SATISFIED** |
+| `app/services/paper_trade_service.py` | N/A | **92%** | **SATISFIED** |
+| `app/services/optimizer_service.py` | N/A | **88%** | **SATISFIED** |
+| `app/services/prediction_service.py` | N/A | **88%** | **SATISFIED** |
 | **Overall `app/services/` Line Coverage** | $\ge 80\%$ | **91%** | **SATISFIED** |
+
+---
+
+## Configuration Reference (SRS §11.1)
+
+All configuration settings are loaded via environment variables or a `.env` file:
+
+| Variable | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `FLASK_APP` | String | `app:create_app()` | Flask application factory entry point. |
+| `FLASK_ENV` | String | `development` | Environment mode (`development`, `testing`, `production`). |
+| `SECRET_KEY` | String | — | Session signing key (must be $\ge 32$ hex characters in production). |
+| `DATABASE_URL` | String | `sqlite:///tradesense.db` | SQLAlchemy connection URI (PostgreSQL in production). |
+| `MARKET_DATA_PROVIDER` | String | `mock` | Market data feed adapter (`mock`, `nse`). |
+| `GEMINI_API_KEY` | String | — | Google Gemini API key for sentiment analysis & explanations. |
+| `WEB3_RPC_URL` | String | — | JSON-RPC provider endpoint for Polygon / Ethereum node. |
+| `CONTRACT_ADDRESS` | String | — | Deployed `TradeSenseAudit.sol` contract address. |
+| `OPERATOR_PRIVATE_KEY`| String | — | Hex-encoded private key for blockchain transaction signing. |
+| `CHAIN_ID` | Integer | `80002` | Network Chain ID (e.g. 80002 for Polygon Amoy). |
+| `WORKER_POLL_INTERVAL_SECONDS` | Integer | `5` | Background worker loop poll interval. |
+| `WORKER_BATCH_SIZE` | Integer | `20` | Maximum jobs processed per worker batch. |
+| `WORKER_MAX_RETRIES` | Integer | `5` | Maximum retry attempts before dead-letter failure. |
+| `WORKER_LEASE_SECONDS` | Integer | `60` | Lease lock duration for worker concurrency safety. |
+| `LOG_LEVEL` | String | `INFO` | Logging threshold (`DEBUG`, `INFO`, `WARNING`, `ERROR`). |
 
 ---
 
@@ -187,11 +225,34 @@ $env:FLASK_ENV = "development"
 # Run Flask application
 flask run --port 5000
 ```
+Navigate to `http://localhost:5000/dashboard` to access the interactive web interface.
 
 ### 5. Running the Background Blockchain Worker
 ```powershell
 python -c "from app import create_app; from app.workers.blockchain_worker import BlockchainWorker; app = create_app(); app.app_context().push(); worker = BlockchainWorker(); worker.run_forever()"
 ```
+
+---
+
+## Backup & Disaster Recovery Procedures
+
+### SQLite (Staging/Local)
+```powershell
+# Online atomic backup
+sqlite3 tradesense.db ".backup 'tradesense_backup.db'"
+```
+
+### PostgreSQL (Production)
+```bash
+# Full logical database backup
+pg_dump -U tradesense_user -h 127.0.0.1 -Fc tradesense_db > /backups/tradesense_$(date +%Y%m%d_%H%M%S).dump
+
+# Database restoration
+pg_restore -U tradesense_user -d tradesense_db -v /backups/tradesense_backup.dump
+```
+
+Detailed systemd services, Nginx reverse proxy configuration, and deployment runbooks are documented in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).  
+Model governance, baselines, and reference notional calibration are documented in [`docs/ML_EVALUATION_REPORT.md`](docs/ML_EVALUATION_REPORT.md).
 
 ---
 
