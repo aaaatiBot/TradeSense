@@ -34,6 +34,15 @@ class Clock:
         return cls.now(tz=datetime.timezone.utc)
 
     @classmethod
+    def ensure_utc(cls, dt: Optional[datetime.datetime]) -> Optional[datetime.datetime]:
+        """Ensure a datetime is timezone-aware in UTC (normalizing SQLite naive returns)."""
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=datetime.timezone.utc)
+        return dt.astimezone(datetime.timezone.utc)
+
+    @classmethod
     def set_fixed(cls, dt: Optional[datetime.datetime]) -> None:
         """Fix the clock to a specific datetime for deterministic tests."""
         if dt is not None and dt.tzinfo is None:

@@ -5,7 +5,7 @@
   <img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python 3.11+" />
   <img src="https://img.shields.io/badge/Flask-3.x-lightgrey.svg" alt="Flask 3.x" />
   <img src="https://img.shields.io/badge/SQLAlchemy-2.x-red.svg" alt="SQLAlchemy 2.x" />
-  <img src="https://img.shields.io/badge/coverage-100%25%20services-brightgreen.svg" alt="Test Coverage" />
+  <img src="https://img.shields.io/badge/coverage-98%25%20services-brightgreen.svg" alt="Test Coverage" />
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License" />
 </p>
 
@@ -33,7 +33,7 @@ STANKS/
 |-- app/
 |   |-- __init__.py                  # Application factory (create_app)
 |   |-- config.py                    # Environment-based config (Dev, Test, Prod) + validation
-|   |-- extensions.py                # Database and extension singletons
+|   |-- extensions.py                # Database, limiter, and extension singletons
 |   |-- models/                      # SQLAlchemy models (§7.1-§7.17, §6.5, §6.6, §9.4.1, §15.1)
 |   |-- routes/                      # Route blueprints (API v1)
 |   |-- services/                    # Domain services (auth, cost, optimizer, blockchain, ML)
@@ -41,7 +41,7 @@ STANKS/
 |   |-- workers/                     # Durable background queue workers (§7.14)
 |   |-- templates/                   # Jinja2 presentation templates
 |   |-- static/                      # Static assets (css, js, images)
-|   |-- utils/                       # Clock abstraction, structured logger, API envelope
+|   |-- utils/                       # Clock abstraction, structured logger, API envelope, decorators
 |-- contracts/                       # Solidity smart contracts (§8)
 |-- ml/                              # Machine learning training, inference & artifacts (§9)
 |-- migrations/                      # Alembic migrations (21 tables + versioning)
@@ -94,10 +94,10 @@ alembic upgrade head
 
 ### 5. Automated Test Suite
 ```bash
-# Run all tests with coverage on domain services (100% line coverage in Phase 1)
+# Run all tests with coverage on domain services (98% line coverage in Phase 2)
 pytest -v --cov=app/services --cov-report=term-missing
 
-# Run full project coverage
+# Run full project coverage (96% overall coverage)
 pytest -v --cov=app --cov-report=term-missing
 ```
 
@@ -116,41 +116,6 @@ Or with curl:
 curl http://127.0.0.1:5000/api/v1/health
 ```
 
-Sample Response:
-```json
-{
-  "data": {
-    "dependencies": {
-      "blockchain": {
-        "checked_at": "2026-11-08T08:32:05.381237+00:00",
-        "reason": "BLOCKCHAIN_PROVIDER_URL not set",
-        "status": "down"
-      },
-      "database": {
-        "checked_at": "2026-11-08T08:32:05.381237+00:00",
-        "latency_ms": 1.62,
-        "status": "ok"
-      },
-      "gemini": {
-        "checked_at": "2026-11-08T08:32:05.381237+00:00",
-        "reason": "GEMINI_API_KEY not set",
-        "status": "down"
-      },
-      "market_data": {
-        "checked_at": "2026-11-08T08:32:05.381237+00:00",
-        "reason": "MARKET_DATA_API_KEY not set",
-        "status": "down"
-      }
-    },
-    "status": "degraded",
-    "timestamp": "2026-11-08T08:32:05.381237+00:00"
-  },
-  "error": null,
-  "ok": true,
-  "request_id": "43b9258d-936f-46d8-a1f5-a0db892ad4ad"
-}
-```
-
 ---
 
 ## 📋 Implementation Roadmap (12 Phases)
@@ -158,7 +123,7 @@ Sample Response:
 | Phase | Milestone | Status |
 |:---:|---|:---:|
 | **1** | **Repository, Flask scaffold, configuration, base DB & health endpoint** | ✅ **Completed** |
-| 2 | Authentication and authorization (FR-AUTH) | ⏳ Pending |
+| **2** | **Authentication and authorization (FR-AUTH)** | ✅ **Completed** |
 | 3 | Transaction cost engine (FR-CST) | ⏳ Pending |
 | 4 | Market data and features (FR-MKT) | ⏳ Pending |
 | 5 | ML training and conditional-return estimation (FR-PRD, §4.5.1) | ⏳ Pending |

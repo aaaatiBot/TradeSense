@@ -10,7 +10,7 @@ from flask import Flask, g, request
 from werkzeug.exceptions import HTTPException
 
 from app.config import BaseConfig, config_by_name
-from app.extensions import db
+from app.extensions import db, limiter
 from app.routes import register_routes
 from app.utils.clock import Clock
 from app.utils.logger import logger, setup_logging
@@ -35,6 +35,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
 
     # Initialize extensions
     db.init_app(app)
+    limiter.init_app(app)
 
     # Request Lifecycle Hooks
     @app.before_request
