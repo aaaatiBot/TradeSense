@@ -95,6 +95,17 @@ class JobWorker(BlockchainWorker):
             job = self.enqueue_job("score_news", {"limit": 10}, max_attempts=3)
             scheduled["score_news"] = job
 
+        # 4. yfinance 5-minute price polling
+        existing_yf = db.session.execute(
+            select(JobQueue).where(
+                JobQueue.job_type.in_(["POLL_YFINANCE_PRICES", "poll_yfinance_prices"]),
+                JobQueue.status.in_(["QUEUED", "RUNNING"]),
+            )
+        ).scalar_one_or_none()
+        if existing_yf is None:
+            job = self.enqueue_job("POLL_YFINANCE_PRICES", {}, max_attempts=3)
+            scheduled["POLL_YFINANCE_PRICES"] = job
+
         return scheduled
 
     def start(self, universe_symbols: Optional[List[str]] = None) -> None:
@@ -128,6 +139,8 @@ class JobWorker(BlockchainWorker):
             last_tick_agg = 0.0
             last_news_poll = 0.0
             last_sentiment = 0.0
+            last_yf_poll = 0.0
+            yf_poll_interval = 300.0  # 5 minutes
 
             while not self._stop_event.is_set():
                 now_mono = time.monotonic()
@@ -146,6 +159,9 @@ class JobWorker(BlockchainWorker):
                             if now_mono - last_sentiment >= self.sentiment_interval:
                                 self.enqueue_job("score_news", {"limit": 10})
                                 last_sentiment = now_mono
+                            if is_market and (now_mono - last_yf_poll >= yf_poll_interval):
+                                self.enqueue_job("POLL_YFINANCE_PRICES", {})
+                                last_yf_poll = now_mono
                     else:
                         if now_mono - last_tick_agg >= self.tick_agg_interval:
                             self.enqueue_job("tick_aggregate", {"lookback_minutes": 5})
@@ -156,6 +172,9 @@ class JobWorker(BlockchainWorker):
                         if now_mono - last_sentiment >= self.sentiment_interval:
                             self.enqueue_job("score_news", {"limit": 10})
                             last_sentiment = now_mono
+                        if is_market and (now_mono - last_yf_poll >= yf_poll_interval):
+                            self.enqueue_job("POLL_YFINANCE_PRICES", {})
+                            last_yf_poll = now_mono
                 except Exception as exc:
                     logger.error(f"Error in scheduler loop: {exc}")
 

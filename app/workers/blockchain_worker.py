@@ -124,6 +124,10 @@ class BlockchainWorker:
                 from app.services.gemini_service import GeminiService
                 limit = payload.get("limit", 10)
                 GeminiService().score_unscored_news(limit=limit)
+            elif job.job_type in ["POLL_YFINANCE_PRICES", "poll_yfinance_prices"]:
+                from app.services.market_data_service import MarketDataService
+                tickers = payload.get("tickers")
+                MarketDataService.poll_latest_prices(tickers=tickers)
             elif job.job_type == "live_tick_reconnect":
                 from app.services.live_tick_service import LiveTickService
                 symbols = payload.get("symbols", [])

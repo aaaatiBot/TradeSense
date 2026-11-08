@@ -9,9 +9,10 @@ from sqlalchemy import select
 from app.extensions import db
 from app.models.price import Price
 from app.models.stock import Stock
-from app.services.live_tick_service import LiveTickService, get_cached_tick
+from app.services.live_tick_service import LiveTickService, get_cached_tick, set_cached_tick
 from app.services.universe_service import UniverseService
 from app.utils.clock import Clock
+from app.utils.logger import logger
 
 
 class MarketDataError(Exception):
@@ -144,30 +145,146 @@ class MarketDataService:
         return get_cached_tick(ticker)
 
     @classmethod
-    def get_quote(cls, ticker: str) -> Dict[str, Any]:
-        """Fetch real-time stock quote with fallback.
+    def poll_latest_prices(cls, tickers: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Poll latest market data using yfinance (Phase D).
         
-        First attempts to read from latest-tick cache (populated by LiveTickService).
-        Falls back to existing REST/database path if cache is empty or stale (> 5 seconds during market hours).
+        Fetches 1-minute OHLCV bars using the .NS suffix for Indian equities (e.g. RELIANCE.NS).
+        Parses data, updates the in-memory tick cache, and inserts OHLCV bars into `prices`.
+        Handles cases where Yahoo returns empty data.
+        """
+        import yfinance as yf
+
+        if not tickers:
+            active_stocks = UniverseService.list_active_stocks()
+            tickers = [s.ticker for s in active_stocks] if active_stocks else ["RELIANCE", "TCS", "INFY"]
+
+        clean_tickers = [t.replace(".NS", "").upper().strip() for t in tickers]
+        results = {"polled": clean_tickers, "success": [], "failed": [], "bars_count": 0}
+
+        for ticker in clean_tickers:
+            yf_symbol = f"{ticker}.NS" if not ticker.endswith(".NS") else ticker
+            try:
+                ticker_obj = yf.Ticker(yf_symbol)
+                df = ticker_obj.history(period="1d", interval="1m")
+
+                if df is None or df.empty:
+                    df = ticker_obj.history(period="5d", interval="1m")
+
+                if df is None or df.empty:
+                    results["failed"].append(ticker)
+                    continue
+
+                stock = UniverseService.get_stock(ticker)
+                if stock is None:
+                    # Auto-provision stock entity in active universe so price bars link foreign key
+                    stock = Stock(
+                        ticker=ticker,
+                        name=f"{ticker} Limited",
+                        isin=f"IN{ticker[:8].ljust(8, '0')}01",
+                        exchange="NSE",
+                        status="active",
+                    )
+                    db.session.add(stock)
+                    db.session.flush()
+
+                bars_for_ticker = 0
+
+                for idx, row in df.tail(10).iterrows():
+                    bar_dt = Clock.ensure_utc(idx.to_pydatetime() if hasattr(idx, "to_pydatetime") else idx)
+                    o_val = Decimal(str(round(float(row["Open"]), 4)))
+                    h_val = Decimal(str(round(float(row["High"]), 4)))
+                    l_val = Decimal(str(round(float(row["Low"]), 4)))
+                    c_val = Decimal(str(round(float(row["Close"]), 4)))
+                    v_val = int(row["Volume"])
+
+                    if stock is not None:
+                        existing = db.session.execute(
+                            select(Price).where(
+                                Price.stock_id == stock.id,
+                                Price.timestamp == bar_dt,
+                            )
+                        ).scalar_one_or_none()
+
+                        if existing is None:
+                            new_price = Price(
+                                stock_id=stock.id,
+                                ticker=ticker,
+                                timestamp=bar_dt,
+                                open=o_val,
+                                high=h_val,
+                                low=l_val,
+                                close=c_val,
+                                volume=v_val,
+                                frequency="1m",
+                                source="yfinance",
+                            )
+                            db.session.add(new_price)
+                        else:
+                            existing.high = max(existing.high, h_val)
+                            existing.low = min(existing.low, l_val)
+                            existing.close = c_val
+                            existing.volume = v_val
+                            existing.source = "yfinance"
+
+                        bars_for_ticker += 1
+
+                # Update in-memory latest tick cache
+                latest_row = df.iloc[-1]
+                latest_dt = Clock.ensure_utc(df.index[-1].to_pydatetime() if hasattr(df.index[-1], "to_pydatetime") else df.index[-1])
+                latest_close = Decimal(str(round(float(latest_row["Close"]), 4)))
+                latest_vol = int(latest_row["Volume"])
+
+                set_cached_tick(ticker, {
+                    "ticker": ticker,
+                    "price": latest_close,
+                    "volume": latest_vol,
+                    "ts_utc": latest_dt,
+                    "source": "yfinance",
+                })
+
+                results["success"].append(ticker)
+                results["bars_count"] += bars_for_ticker
+
+            except Exception as exc:
+                logger.warning(f"Error polling market data for {ticker}: {exc}")
+                results["failed"].append(ticker)
+
+        db.session.commit()
+        return results
+
+    @classmethod
+    def get_quote(cls, ticker: str) -> Dict[str, Any]:
+        """Fetch stock quote with yfinance polling and 15-minute staleness check (SRS §4.3).
+        
+        Reads from latest cache or prices table populated by poll_latest_prices.
+        Flags quote as is_stale=True if older than 15 minutes during market hours.
         """
         cached = cls.get_latest_tick(ticker)
         now = Clock.utcnow()
+        in_market_hours = LiveTickService.is_market_hours(now)
+        staleness_limit_15m = 15.0 * 60.0
 
         if cached is not None:
             ts = cached.get("ts_utc")
             ts_utc = Clock.ensure_utc(ts) if ts else now
             age_seconds = (now - ts_utc).total_seconds()
-            in_market_hours = LiveTickService.is_market_hours(now)
-            is_stale = in_market_hours and (age_seconds > 5.0)
+            source = cached.get("source", "live_tick_cache")
 
-            if not is_stale:
+            # Realtime/WebSocket tick cache expires after 5s during market hours;
+            # yfinance polling feed expires after 15m.
+            cache_ttl = 5.0 if source in ("fyers_ws", "market_simulator", "live_tick_cache") else staleness_limit_15m
+            cache_is_stale = in_market_hours and (age_seconds > cache_ttl)
+
+            if not cache_is_stale:
+                is_live = source in ("fyers_ws", "market_simulator", "live_tick_cache")
                 return {
                     "ticker": ticker.upper().strip(),
                     "price": cached["price"],
                     "volume": cached.get("volume", 0),
                     "timestamp": ts_utc,
-                    "source": cached.get("source", "live_tick_cache"),
-                    "is_live": True,
+                    "source": source,
+                    "is_live": is_live,
+                    "is_delayed": source == "yfinance",
                     "is_stale": False,
                 }
 
@@ -184,14 +301,20 @@ class MarketDataService:
         ).scalar_one_or_none()
 
         if latest_price_row is not None:
+            ts_utc = Clock.ensure_utc(latest_price_row.timestamp)
+            age_seconds = (now - ts_utc).total_seconds()
+            is_stale_15m = in_market_hours and (age_seconds > staleness_limit_15m)
+            was_cache_stale = cached is not None
+
             return {
                 "ticker": ticker.upper().strip(),
                 "price": latest_price_row.close,
                 "volume": latest_price_row.volume,
                 "timestamp": latest_price_row.timestamp,
-                "source": latest_price_row.source or "database",
+                "source": latest_price_row.source or "prices_table",
                 "is_live": False,
-                "is_stale": True if cached is not None else False,
+                "is_delayed": True,
+                "is_stale": was_cache_stale or is_stale_15m,
             }
 
         last_p = getattr(stock, "last_price", None)
@@ -203,10 +326,12 @@ class MarketDataService:
                 "timestamp": now,
                 "source": "stock_metadata",
                 "is_live": False,
+                "is_delayed": True,
                 "is_stale": True,
             }
 
         raise MarketDataError("PRICE_NOT_FOUND", f"No price data available for '{ticker}'", status_code=404)
+
 
     @classmethod
     def get_historical_prices(cls, ticker: str, limit: int = 100) -> List[Price]:
