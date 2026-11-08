@@ -37,6 +37,7 @@ def require_auth(f: Callable) -> Callable:
         try:
             user, session = AuthService.verify_session_token(token)
             g.current_user = user
+            g.user = user
             g.current_session = session
             g.user_id = user.id
             g.raw_token = token
